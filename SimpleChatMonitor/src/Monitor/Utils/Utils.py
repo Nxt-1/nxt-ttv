@@ -1,3 +1,4 @@
+import argparse
 import logging
 import multiprocessing
 import sys
@@ -33,6 +34,19 @@ def check_folder(folder: str, use_logging: bool) -> None:
         else:
             sys.stderr.write('Cannot create \'' + folder + '\', permission denied: ' + str(e) + '\n')
         raise PermissionError
+
+
+def setup_arg_parser() -> argparse.ArgumentParser():
+    """
+    Helper function to create and add all arguments to a commandline argument parser
+
+    :return: The parser object
+    """
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-t', '--token', type=str, required=True, help='Bot channel OAth token')
+    return parser
 
 
 class GlobalTerminator(multiprocessing.Process):
