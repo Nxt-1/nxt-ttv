@@ -46,8 +46,11 @@ def main():
 
     module_logger.info('Nxt Twitch chat monitor is ready')
 
-    bot = MyBot(token=args.token, prefix='?', initial_channels=['nxt__1'])
+    bot = MyBot(token=args.token, prefix='?', initial_channels=['nxt__1', 'deathy_tv'])
     bot.run()
+    module_logger.info('Bot exited')
+    if not global_terminator.is_term.is_set():
+        global_terminator.do_terminate(0)
 
     sys.exit(global_terminator.exit_code.value)
 
