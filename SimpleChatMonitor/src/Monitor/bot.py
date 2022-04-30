@@ -1,23 +1,49 @@
+import json
 import logging
+import os
 import re
-from typing import List
+from typing import Union, Callable, Coroutine, Optional
 
 from twitchio.ext import commands
 
+from Monitor.Utils import Constants
+
 module_logger = logging.getLogger(__name__)
 
-BAN_WORDS = {'viewers', 'followers', 'primes', 'mountviewers', 'mystrm', 'famous'}  # <- no strings with spaces allowed?
-# TODO: Implement weighted system
 # TODO: Implement weights on sub/vip/following status
+# TODO: Ban cyrillics: r"[А-Яа-яЁё]+"
 # TODO: Read ban words from a structured file
-BAN_WORDS_RE = re.compile(r'|'.join(BAN_WORDS), re.IGNORECASE)  # Ban words converted into a regex
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
-MIN_SCORE = 2  # The minimum score a message needs to hit before getting flagged
 
 
 class MyBot(commands.Bot):
-    def __int__(self, token: str, prefix: str, initial_channels: List[str]):
-        commands.Bot.__init__(self, token=token, prefix=prefix, initial_channels=initial_channels)
+    def __init__(self, token: str, prefix: Union[str, list, tuple, set, Callable, Coroutine], client_secret: str = None,
+                 initial_channels: Union[list, tuple, Callable] = None, heartbeat: Optional[float] = 30.0, **kwargs):
+
+        super().__init__(token=token, prefix=prefix, client_secret=client_secret, initial_channels=initial_channels,
+                         heartbeat=heartbeat, kwargs=kwargs)
+        self.flagged_re: dict[str, re.Pattern] = {}
+        self.min_score = 999  # The minimum score a message needs to hit before getting flagged
+
+        self.read_config_file(Constants.CONFIG_PATH)
+
+    def read_config_file(self, file_path: str) -> None:
+        # TODO: Convert this to a separate matching object
+        try:
+            with open(os.path.abspath(file_path)) as config_file:
+                config_json = json.load(config_file)
+        except FileNotFoundError as e:
+            # TODO: Handle config not found
+            module_logger.error('Could not find config file at ' + str(os.path.abspath(file_path)) + ': ' + str(e))
+        else:
+            for tier in config_json['flaggedTiers']:
+                module_logger.info('Tier name: ' + str(tier) + ' containing: ' + str(config_json['flaggedTiers'][tier]))
+                if config_json['flaggedTiers'][tier]:
+                    self.flagged_re[tier] = re.compile(r'|'.join(config_json['flaggedTiers'][tier]), re.IGNORECASE)
+                else:
+                    module_logger.warning('Skipping tier with empty list')
+            self.min_score = config_json['minScore']
+            module_logger.info('Min score is ' + str(self.min_score))
 
     async def event_ready(self):
         module_logger.info('Bot is live, logged in as ' + str(self.nick))
@@ -53,16 +79,21 @@ class MyBot(commands.Bot):
 
         # Filter out spaces and non-alpha numeric characters
         filtered_msg = IGNORED_SET.sub('', message.content)
-        match = set(re.findall(BAN_WORDS_RE, filtered_msg))
+        # module_logger.info('Filtered message: ' + str(filtered_msg))
 
-        if len(match) >= 2:
-            module_logger.info('n_match: ' + str(len(match)) + ': ' + str(match))
-            await message.channel.send('^ This message got detected as a bot @Nxt__1 (' + str(
-                len(match)) + ') (?fp to report a false positive or ?leave to get rid of me)')
-        elif len(match) >= 3:
-            module_logger.info('n_match: ' + str(len(match)) + ': ' + str(match))
-            await message.channel.send('^ Now this guy just has to go (' + str(len(match)) +
-                                       ') Where\'s that Nxt guy when you need him right (?leave to get rid of me)')
+        message_score = 0
+        for (tier, tier_re) in self.flagged_re.items():
+            match = set(re.findall(tier_re, filtered_msg))
+            tier_score = int(tier, base=10) * len(match)
+            message_score += tier_score
+
+            # module_logger.info('Tier score: ' + str(tier_score) + ' for matches: ' + str(match))
+
+        # module_logger.warning('Total message score: ' + str(message_score))
+        if message_score >= self.min_score:
+            module_logger.info('Message with score: ' + str(message_score) + ': ' + str(message.content))
+            await message.channel.send('^ This message got detected as a bot @Nxt__1 (' + str(message_score) +
+                                       ') (?fp to report a false positive or ?leave to get rid of me)')
 
         # Since we have commands and are overriding the default `event_message`
         # We must let the bot know we want to handle and invoke our commands...
