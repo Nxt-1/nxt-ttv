@@ -11,18 +11,24 @@ from Monitor.Utils import Constants
 module_logger = logging.getLogger(__name__)
 
 # TODO: Implement weights on sub/vip/following status
-# TODO: Ban cyrillics: r"[А-Яа-яЁё]+"
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
 
 class MessageChecker:
-    def __init__(self):
+    CYRILLIC_RE = re.compile(r'[А-Яа-яЁё]+', re.IGNORECASE)  # Regex to match any cyrillic character
+
+    def __init__(self, cyrillics_score: float = None):
+        """
+        :param cyrillics_score: Score to add in case any cyrillic character is found in the message, None to
+        disable (default)
+        """
+
         self.name = 'default'  # Descriptor for the specific filter
         self.flagged_re: dict[str, re.Pattern] = {}
+        self.cyrillics_score = cyrillics_score
         self.min_score = 999  # Minimum score required for a message to be flagged
 
         self.read_config_file(Constants.CONFIG_PATH)
-        # TODO: Add ban cyrillics option
 
     def read_config_file(self, file_path: str) -> None:
         """
@@ -62,15 +68,18 @@ class MessageChecker:
 
         # Filter out spaces and non-alpha numeric characters
         filtered_msg = IGNORED_SET.sub('', message)
-        # module_logger.info('Filtered message: ' + str(filtered_msg))
 
         message_score = 0
         for (tier, tier_re) in self.flagged_re.items():
             match = set(re.findall(tier_re, filtered_msg))
             tier_score = int(tier, base=10) * len(match)
             message_score += tier_score
+        # Only check for cyrillics if enabled
+        if self.cyrillics_score:
+            if re.findall(MessageChecker.CYRILLIC_RE, message):
+                module_logger.warning('Matched cyrillics')
+                message_score += self.cyrillics_score
 
-            # module_logger.info('Tier score: ' + str(tier_score) + ' for matches: ' + str(match))
         if message_score >= self.min_score:
             module_logger.info('Message with score ' + str(message_score) + ': ' + str(message))
             return True
@@ -85,7 +94,7 @@ class MyBot(commands.Bot):
         super().__init__(token=token, prefix=prefix, client_secret=client_secret, initial_channels=initial_channels,
                          heartbeat=heartbeat, kwargs=kwargs)
 
-        self.spam_bot_filter = MessageChecker()
+        self.spam_bot_filter = MessageChecker(cyrillics_score=10)
 
     async def event_ready(self):
         module_logger.info('Bot is live, logged in as ' + str(self.nick))
