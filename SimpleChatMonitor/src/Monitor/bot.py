@@ -17,9 +17,12 @@ IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
 class MessageChecker:
     def __init__(self):
+        self.name = 'default'  # Descriptor for the specific filter
         self.flagged_re: dict[str, re.Pattern] = {}
-        self.min_score = 999
+        self.min_score = 999  # Minimum score required for a message to be flagged
+
         self.read_config_file(Constants.CONFIG_PATH)
+        # TODO: Add ban cyrillics option
 
     def read_config_file(self, file_path: str) -> None:
         """
@@ -35,6 +38,7 @@ class MessageChecker:
             # TODO: Handle config not found
             module_logger.error('Could not find config file at ' + str(os.path.abspath(file_path)) + ': ' + str(e))
         else:
+            self.name = config_json['name']
             for tier in config_json['flaggedTiers']:
                 module_logger.info('Tier name: ' + str(tier) + ' containing: ' + str(config_json['flaggedTiers'][tier]))
                 if config_json['flaggedTiers'][tier]:
@@ -51,6 +55,7 @@ class MessageChecker:
 
         :param message: The message to check
         :return: True is case of flagged messages, False otherwise
+        # TODO: Implement a result class containing the filter name, offending keywords and score
         """
 
         # TODO: Check that the config is loaded?
@@ -80,7 +85,7 @@ class MyBot(commands.Bot):
         super().__init__(token=token, prefix=prefix, client_secret=client_secret, initial_channels=initial_channels,
                          heartbeat=heartbeat, kwargs=kwargs)
 
-        self.message_checker = MessageChecker()
+        self.spam_bot_filter = MessageChecker()
 
     async def event_ready(self):
         module_logger.info('Bot is live, logged in as ' + str(self.nick))
@@ -114,7 +119,7 @@ class MyBot(commands.Bot):
         if message.echo:
             return
 
-        if self.message_checker.check_message(message.content):
+        if self.spam_bot_filter.check_message(message.content):
             await message.channel.send('^ This message got detected as a bot (?fp to report a false positive or ?leave '
                                        'to get rid of me) @Nxt__1')
 

@@ -1,4 +1,5 @@
 {
+  "name": "bot-filter",
   "flaggedTiers": {
     "1": ["buy", "famous"],
     "2": ["viewers", "followers", "primes"],
