@@ -2,15 +2,18 @@ import json
 import logging
 import os
 import re
+from datetime import datetime, timezone
 from typing import Union, Callable, Coroutine, Optional
 
+import twitchio
 from twitchio.ext import commands
 
 from Monitor.Utils import Constants
 
 module_logger = logging.getLogger(__name__)
 
-# TODO: Implement weights on sub/vip/following status
+# TODO: Allow full cyrillic sentence
+# TODO: Let users vote if someone is detected
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
 
@@ -28,6 +31,10 @@ class MessageChecker:
         self.cyrillics_score = cyrillics_score
         self.min_score = 999  # Minimum score required for a message to be flagged
 
+        self.ignore_channel_staff = False
+        self.ignore_subscriber = False
+        self.ignore_follower = False
+
         self.read_config_file(Constants.CONFIG_PATH)
 
     def read_config_file(self, file_path: str) -> None:
@@ -44,17 +51,29 @@ class MessageChecker:
             # TODO: Handle config not found
             module_logger.error('Could not find config file at ' + str(os.path.abspath(file_path)) + ': ' + str(e))
         else:
+            # Read the filter name
             self.name = config_json['name']
+
+            # Read the ban lists
             for tier in config_json['flaggedTiers']:
                 module_logger.info('Tier name: ' + str(tier) + ' containing: ' + str(config_json['flaggedTiers'][tier]))
                 if config_json['flaggedTiers'][tier]:
                     self.flagged_re[tier] = re.compile(r'|'.join(config_json['flaggedTiers'][tier]), re.IGNORECASE)
                 else:
                     module_logger.warning('Skipping tier with empty list')
+
+            # Read the min score for a message the get flagged
             self.min_score = config_json['minScore']
             module_logger.info('Min score is ' + str(self.min_score))
 
-    def check_message(self, message: str) -> bool:
+            # Read extra options
+            self.ignore_channel_staff = config_json['options']['ignore_channel_staff']
+            self.ignore_subscriber = config_json['options']['ignore_subscriber']
+            self.ignore_follower = config_json['options']['ignore_follower']
+            module_logger.info('Load ignores: ' + str(self.ignore_channel_staff) + '|' + str(self.ignore_subscriber) +
+                               '|' + str(self.ignore_follower))
+
+    async def check_message(self, message: twitchio.Message) -> bool:
         """
         Check the passed message against the loaded filter configuration. If the message gets flagged, True is returned.
         False in all other cases.
@@ -66,8 +85,35 @@ class MessageChecker:
 
         # TODO: Check that the config is loaded?
 
+        # Ignore broadcaster/mods if needed
+        if self.ignore_channel_staff and (message.author.is_broadcaster or message.author.is_mod):
+            # module_logger.info('Ignoring due to channel staff')
+            return False
+
+        # Ignore subscriber if needed
+        if self.ignore_subscriber and message.author.is_subscriber:
+            # module_logger.info('Ignoring due to subscriber')
+            return False
+
+        # Get the user chatter user object
+        message_user = await message.author.user()
+        # Get the channel user object
+        message_channel = await message.channel.user()
+        # Check if the chatter user is following the channel user
+        follow_event = await message_user.fetch_follow(message_channel)
+
+        # Ignore followers if needed
+        if self.ignore_follower and follow_event:
+            # module_logger.info('Ignoring due to follower')
+            return False
+
+        if follow_event:
+            # TODO: Implement follow time weight
+            module_logger.debug('User is following for ' + str(
+                (datetime.now(tz=timezone.utc) - follow_event.followed_at).days) + ' days')
+
         # Filter out spaces and non-alpha numeric characters
-        filtered_msg = IGNORED_SET.sub('', message)
+        filtered_msg = IGNORED_SET.sub('', message.content)
 
         message_score = 0
         for (tier, tier_re) in self.flagged_re.items():
@@ -76,7 +122,7 @@ class MessageChecker:
             message_score += tier_score
         # Only check for cyrillics if enabled
         if self.cyrillics_score:
-            if re.findall(MessageChecker.CYRILLIC_RE, message):
+            if re.findall(MessageChecker.CYRILLIC_RE, message.content):
                 module_logger.warning('Matched cyrillics')
                 message_score += self.cyrillics_score
 
@@ -128,7 +174,7 @@ class MyBot(commands.Bot):
         if message.echo:
             return
 
-        if self.spam_bot_filter.check_message(message.content):
+        if await self.spam_bot_filter.check_message(message):
             await message.channel.send('^ This message got detected as a bot (?fp to report a false positive or ?leave '
                                        'to get rid of me) @Nxt__1')
 

@@ -1,10 +1,25 @@
 {
   "name": "bot-filter",
   "flaggedTiers": {
-    "1": ["buy", "famous"],
-    "2": ["viewers", "followers", "primes"],
+    "1": [
+      "buy",
+      "famous"
+    ],
+    "2": [
+      "viewers",
+      "followers",
+      "primes"
+    ],
     "3": [],
-    "4": ["mountviewers", "mystrm"]
+    "4": [
+      "mountviewers",
+      "mystrm"
+    ]
   },
-  "minScore": 5
+  "minScore": 5,
+  "options": {
+    "ignore_channel_staff": true,
+    "ignore_subscriber": true,
+    "ignore_follower": false
+  }
 }
