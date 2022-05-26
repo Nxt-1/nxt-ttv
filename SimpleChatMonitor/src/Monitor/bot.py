@@ -154,10 +154,10 @@ class MyBot(commands.Bot):
         module_logger.warning('Leave command received, closing')
         if ctx.author.is_broadcaster or ctx.author.is_mod:
             await ctx.send('Hello ' + str(ctx.author.name) + ', I will be leaving your channel now')
+            await self.close()
         else:
             await ctx.send('Hello ' + str(ctx.author.name) +
                            ', only broadcasters and mods are allowed to use this command')
-        await self.close()
 
     @commands.command()
     async def goal(self, ctx: commands.Context):
