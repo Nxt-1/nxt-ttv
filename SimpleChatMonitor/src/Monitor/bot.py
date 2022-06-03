@@ -65,6 +65,11 @@ class MessageChecker:
         self.cyrillics_score = cyrillics_score
         self.min_score = 999  # Minimum score required for a message to be flagged
 
+        # Multipliers
+        self.follow_time_days_cutoff = 0  # Cutoff value in days for the following score multiplier
+        self.follow_time_multiplier = 1  # Message score gets multiplied by this if the author was following for the cutoff value or less
+
+        # Options
         self.ignore_channel_staff = False
         self.ignore_subscriber = False
         self.ignore_follower = False
@@ -98,6 +103,12 @@ class MessageChecker:
             # Read the min score for a message the get flagged
             self.min_score = config_json['minScore']
             module_logger.info('Min score is ' + str(self.min_score))
+
+            # Read multipliers
+            self.follow_time_days_cutoff = config_json['multipliers']['follow_time_days_cutoff']
+            self.follow_time_multiplier = config_json['multipliers']['follow_time_multiplier']
+            module_logger.info('Loaded follow-time multiplier ' + str(self.follow_time_multiplier) + ' (' +
+                               str(self.follow_time_days_cutoff) + ' days cutoff)')
 
             # Read extra options
             self.ignore_channel_staff = config_json['options']['ignore_channel_staff']
@@ -140,12 +151,25 @@ class MessageChecker:
             if re.findall(MessageChecker.CYRILLIC_RE, message.content):
                 module_logger.warning('Matched cyrillics')
                 result.message_score += self.cyrillics_score
+        # </editor-fold>
+
+        # <editor-fold desc="Multipliers>
+        # Get the user chatter user object
+        message_user = await message.author.user()
+        # Get the channel user object
+        message_channel = await message.channel.user()
+        # Check if the chatter user is following the channel user
+        follow_event = await message_user.fetch_follow(message_channel)
+
+        if follow_event:
+            if (datetime.now(tz=timezone.utc) - follow_event.followed_at).days <= self.follow_time_days_cutoff:
+                result.message_score *= self.follow_time_multiplier
+        # </editor-fold>
 
         if result.message_score >= self.min_score:
             result.match_result = MatchResult.MATCH
         else:
             result.match_result = MatchResult.NO_MATCH
-        # </editor-fold>
 
         # <editor-fold desc="Ignore checking">
         # Ignore broadcaster/mods if needed
@@ -160,24 +184,12 @@ class MessageChecker:
                 result.match_result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.SUBSCRIBER
 
-        # Get the user chatter user object
-        message_user = await message.author.user()
-        # Get the channel user object
-        message_channel = await message.channel.user()
-        # Check if the chatter user is following the channel user
-        follow_event = await message_user.fetch_follow(message_channel)
-
         # Ignore followers if needed
         if self.ignore_follower and follow_event:
             if result.match_result == MatchResult.MATCH:
                 result.match_result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.FOLLOWER
         # </editor-fold>
-
-        if follow_event:
-            # TODO: Implement follow time weight
-            module_logger.debug('User is following for ' +
-                                str((datetime.now(tz=timezone.utc) - follow_event.followed_at).days) + ' days')
 
         return result
 
