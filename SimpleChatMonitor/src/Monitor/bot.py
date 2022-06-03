@@ -41,8 +41,9 @@ class CheckResult:
     The total score for the message as well as the display name of the user who sent it, are passed as well.
     """
 
-    def __init__(self, author_display_name: str, match_result: MatchResult = None, ignore_reason: IgnoreReason = None,
-                 message_score: float = 0):
+    def __init__(self, checker_name: str, author_display_name: str, result: MatchResult = None,
+                 ignore_reason: IgnoreReason = None, message_score: float = 0):
+        self.checker_name = checker_name  # The name of the MessageChecker that produced this result
         self.author_display_name = author_display_name  # The twitch display name of the message author
         self.result = result  # Result of the check
         self.ignore_reason = ignore_reason  # Reason why a match was ignored
@@ -129,12 +130,12 @@ class MessageChecker:
         :return: The CheckResult instance
         """
 
-        result = CheckResult(message.author.display_name)
+        result = CheckResult(self.name, message.author.display_name)
 
         # Check that config file was read and overwrite the default name
         if self.name == 'default':
             module_logger.warning('Message checker did not read config file: check will not be run')
-            result.match_result = MatchResult.ERROR
+            result.result = MatchResult.ERROR
             return result
 
         # <editor-fold desc="Message filtering">
@@ -167,27 +168,27 @@ class MessageChecker:
         # </editor-fold>
 
         if result.message_score >= self.min_score:
-            result.match_result = MatchResult.MATCH
+            result.result = MatchResult.MATCH
         else:
-            result.match_result = MatchResult.NO_MATCH
+            result.result = MatchResult.NO_MATCH
 
         # <editor-fold desc="Ignore checking">
         # Ignore broadcaster/mods if needed
         if self.ignore_channel_staff and (message.author.is_broadcaster or message.author.is_mod):
-            if result.match_result == MatchResult.MATCH:
-                result.match_result = MatchResult.IGNORED
+            if result.result == MatchResult.MATCH:
+                result.result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.CHANNEL_STAFF
 
         # Ignore subscriber if needed
         if self.ignore_subscriber and message.author.is_subscriber:
-            if result.match_result == MatchResult.MATCH:
-                result.match_result = MatchResult.IGNORED
+            if result.result == MatchResult.MATCH:
+                result.result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.SUBSCRIBER
 
         # Ignore followers if needed
         if self.ignore_follower and follow_event:
-            if result.match_result == MatchResult.MATCH:
-                result.match_result = MatchResult.IGNORED
+            if result.result == MatchResult.MATCH:
+                result.result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.FOLLOWER
         # </editor-fold>
 
@@ -239,13 +240,16 @@ class MyBot(commands.Bot):
             module_logger.info('Message to me from ' + str(message.author.name) + ': ' + str(message.content))
 
         spam_bot_result = await self.spam_bot_filter.check_message(message)
-        if spam_bot_result.match_result == MatchResult.MATCH:
+        if spam_bot_result.result == MatchResult.MATCH:
             module_logger.info('Message from ' + spam_bot_result.author_display_name + ' with score ' +
                                str(spam_bot_result.message_score) + ' got flagged: ' + str(message))
-            await message.channel.send('@' + spam_bot_result.author_display_name +
-                                       ' You got flagged as a spambot (?fp to report a false positive or ?leave to get '
-                                       'rid of me) @Nxt__1')
-        elif spam_bot_result.match_result == MatchResult.IGNORED:
+            # await message.channel.send('/delete '+str(message.tags['id']))
+            await message.channel.send('/timeout ' + str(spam_bot_result.author_display_name) + ' ' +
+                                       str(constants.MINUTES_BEFORE_BAN) + 'm')
+            await message.channel.send(spam_bot_result.author_display_name + ' Got flagged by ' +
+                                       spam_bot_result.checker_name + ' (?fp to report a false positive')
+
+        elif spam_bot_result.result == MatchResult.IGNORED:
             module_logger.info('Message from ' + spam_bot_result.author_display_name + ' with score ' +
                                str(spam_bot_result.message_score) + ' got a pass (' +
                                str(spam_bot_result.ignore_reason.name) + '): ' + str(message))
