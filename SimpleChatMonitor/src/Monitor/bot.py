@@ -60,6 +60,7 @@ class MessageChecker:
         """
 
         self.name = 'default'  # Descriptor for the specific filter
+        # Filter
         self.flagged_re: dict[str, re.Pattern] = {}
         self.cyrillics_score = cyrillics_score
         self.min_score = 999  # Minimum score required for a message to be flagged
@@ -69,6 +70,8 @@ class MessageChecker:
         self.ignore_follower = False
 
         self.read_config_file(Constants.CONFIG_PATH)
+
+        module_logger.info('=== ' + self.name + ' filter completed initializing ===')
 
     def read_config_file(self, file_path: str) -> None:
         """
@@ -100,7 +103,7 @@ class MessageChecker:
             self.ignore_channel_staff = config_json['options']['ignore_channel_staff']
             self.ignore_subscriber = config_json['options']['ignore_subscriber']
             self.ignore_follower = config_json['options']['ignore_follower']
-            module_logger.info('Load ignores: ' + str(self.ignore_channel_staff) + '|' + str(self.ignore_subscriber) +
+            module_logger.info('Loaded ignores: ' + str(self.ignore_channel_staff) + '|' + str(self.ignore_subscriber) +
                                '|' + str(self.ignore_follower))
 
             # Read the filter name
