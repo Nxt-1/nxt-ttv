@@ -15,6 +15,7 @@ module_logger = logging.getLogger(__name__)
 
 # TODO: Allow full cyrillic sentence
 # TODO: Let users vote if someone is detected
+# TODO: Automate reporting?
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
 
@@ -218,6 +219,9 @@ class MyBot(commands.Bot):
         # Ignore the bots own messages
         if message.echo:
             return
+
+        if 'hammerboi' in message.content:
+            module_logger.info('Message to me from ' + str(message.author.name) + ': ' + str(message.content))
 
         spam_bot_result = await self.spam_bot_filter.check_message(message)
         if spam_bot_result.match_result == MatchResult.MATCH:
