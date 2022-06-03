@@ -41,10 +41,10 @@ class CheckResult:
     The total score for the message as well as the display name of the user who sent it, are passed as well.
     """
 
-    def __init__(self, checker_name: str, author_display_name: str, result: MatchResult = None,
+    def __init__(self, checker_name: str, message: twitchio.Message, result: MatchResult = None,
                  ignore_reason: IgnoreReason = None, message_score: float = 0):
         self.checker_name = checker_name  # The name of the MessageChecker that produced this result
-        self.author_display_name = author_display_name  # The twitch display name of the message author
+        self.message = message  # The twitchio message instance
         self.result = result  # Result of the check
         self.ignore_reason = ignore_reason  # Reason why a match was ignored
         self.message_score = message_score  # Score of the message
@@ -130,7 +130,7 @@ class MessageChecker:
         :return: The CheckResult instance
         """
 
-        result = CheckResult(self.name, message.author.display_name)
+        result = CheckResult(self.name, message)
 
         # Check that config file was read and overwrite the default name
         if self.name == 'default':
@@ -241,19 +241,19 @@ class MyBot(commands.Bot):
 
         spam_bot_result = await self.spam_bot_filter.check_message(message)
         if spam_bot_result.result == MatchResult.MATCH:
-            module_logger.info('Message from ' + spam_bot_result.author_display_name + ' with score ' +
+            module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
                                str(spam_bot_result.message_score) + ' got flagged: ' + str(message))
             # await message.channel.send('/delete '+str(message.tags['id']))
-            await message.channel.send('/timeout ' + str(spam_bot_result.author_display_name) + ' ' +
+            await message.channel.send('/timeout ' + str(spam_bot_result.message.author.display_name) + ' ' +
                                        str(constants.MINUTES_BEFORE_BAN) + 'm')
-            await message.channel.send(spam_bot_result.author_display_name + ' Got flagged by ' +
+            await message.channel.send(spam_bot_result.message.author.display_name + ' Got flagged by ' +
                                        spam_bot_result.checker_name + ' (?fp to report a false positive')
 
         elif spam_bot_result.result == MatchResult.IGNORED:
-            module_logger.info('Message from ' + spam_bot_result.author_display_name + ' with score ' +
+            module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
                                str(spam_bot_result.message_score) + ' got a pass (' +
                                str(spam_bot_result.ignore_reason.name) + '): ' + str(message))
-            await message.channel.send('@' + spam_bot_result.author_display_name + ' You get a pass because: ' +
+            await message.channel.send('@' + spam_bot_result.message.author.display_name + ' You get a pass because: ' +
                                        str(spam_bot_result.ignore_reason.name))
 
         # Since we have commands and are overriding the default `event_message`
