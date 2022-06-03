@@ -3,7 +3,7 @@ import multiprocessing
 import sys
 
 from Monitor.bot import MyBot
-from Monitor.Utils import Logging, Utils, Constants
+from Monitor.Utils import monitor_logging, utils, constants
 
 module_logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ module_logger = logging.getLogger(__name__)
 def main():
     # <editor-fold desc="Application init">
     # Parse arguments
-    parser = Utils.setup_arg_parser()
+    parser = utils.setup_arg_parser()
     args = parser.parse_args()
 
     # Check if essential folders exist or can be made
@@ -25,7 +25,7 @@ def main():
     #     sys.stdout.write('[Info] Essential output folders are available\n')
 
     from_process_pipe, process_pipe = multiprocessing.Pipe()
-    global_terminator = Utils.GlobalTerminator(from_process_pipe, process_pipe)
+    global_terminator = utils.GlobalTerminator(from_process_pipe, process_pipe)
     global_terminator.daemon = True
     global_terminator.start()
     # </editor-fold>
@@ -33,11 +33,11 @@ def main():
     # <editor-fold desc="Logging">
     # Setup multi-processing logging listener
     log_queue = multiprocessing.Queue(-1)
-    log_listener = Logging.LogListener(log_queue, Constants.LOGGING_LEVEL, global_terminator.is_term)
+    log_listener = monitor_logging.LogListener(log_queue, constants.LOGGING_LEVEL, global_terminator.is_term)
     log_listener.start()
 
     # Configure logging for this module
-    Logging.log_worker_configurer(log_queue, Constants.LOGGING_LEVEL)
+    monitor_logging.log_worker_configurer(log_queue, constants.LOGGING_LEVEL)
     # module_logger.info('Logging into folder: ' + str(Constants.LOGS_PATH))
 
     logging.getLogger('twitchio').setLevel(logging.INFO)

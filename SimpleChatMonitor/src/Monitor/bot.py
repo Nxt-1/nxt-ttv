@@ -9,13 +9,13 @@ from typing import Union, Callable, Coroutine, Optional
 import twitchio
 from twitchio.ext import commands
 
-from Monitor.Utils import Constants
+from Monitor.Utils import constants
 
 module_logger = logging.getLogger(__name__)
 
 # TODO: Allow full cyrillic sentence
-# TODO: Let users vote if someone is detected
 # TODO: Automate reporting?
+# TODO: Log follow time for ban restore
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
 
@@ -36,7 +36,7 @@ class CheckResult:
     """
     Details the result of a MessageChecker run.
 
-    The actual result of the check is stored in 'self.match_result'. If the match_result was IGNORED, the reason will be
+    The actual result of the check is stored in 'self.result'. If the result was IGNORED, the reason will be
     detailed in 'self.ignore_reason'.
     The total score for the message as well as the display name of the user who sent it, are passed as well.
     """
@@ -44,7 +44,7 @@ class CheckResult:
     def __init__(self, author_display_name: str, match_result: MatchResult = None, ignore_reason: IgnoreReason = None,
                  message_score: float = 0):
         self.author_display_name = author_display_name  # The twitch display name of the message author
-        self.match_result = match_result  # Result of the check
+        self.result = result  # Result of the check
         self.ignore_reason = ignore_reason  # Reason why a match was ignored
         self.message_score = message_score  # Score of the message
         # TODO: Add offending keywords?
@@ -74,7 +74,7 @@ class MessageChecker:
         self.ignore_subscriber = False
         self.ignore_follower = False
 
-        self.read_config_file(Constants.CONFIG_PATH)
+        self.read_config_file(constants.CONFIG_PATH)
 
         module_logger.info('=== ' + self.name + ' filter completed initializing ===')
 

@@ -6,3 +6,5 @@ LOGS_PATH = os.path.abspath('../../Logs')
 LOGGING_LEVEL = 'debug'
 
 CONFIG_PATH = os.path.abspath('../../config.json')
+
+MINUTES_BEFORE_BAN = 2
