@@ -340,6 +340,26 @@ class MyBot(commands.Bot):
         await message.channel.send('/ban ' + message.author.display_name)
         self.ban_events.pop(message.author.display_name)
 
+    async def handle_check_result(self, check_result: CheckResult):
+        if check_result.result == MatchResult.MATCH:
+            module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
+                               str(check_result.message_score) + ' got flagged: ' + check_result.message.content)
+            # Create a new ban event and start the timer
+            ban_event = BanEvent(check_result, self.do_ban(check_result.message))
+            await ban_event.start()
+            self.add_ban_event(ban_event)
+
+            await check_result.message.channel.send(check_result.message.author.display_name + ' Got flagged by ' +
+                                                    check_result.checker_name + ' (Use ?fp ' +
+                                                    check_result.message.author.display_name + ' to report a false positive)')
+
+        elif check_result.result == MatchResult.IGNORED:
+            module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
+                               str(check_result.message_score) + ' got a pass (' +
+                               str(check_result.ignore_reason.name) + '): ' + check_result.message.content)
+            await check_result.message.channel.send('@' + check_result.message.author.display_name +
+                                                    ' You get a pass because: ' + str(check_result.ignore_reason.name))
+
     async def event_message(self, message):
         # Ignore the bots own messages
         if message.echo:
@@ -350,26 +370,7 @@ class MyBot(commands.Bot):
             module_logger.info('Message to me from ' + str(message.author.name) + ': ' + str(message.content))
 
         spam_bot_result = await self.spam_bot_filter.check_message(message)
-
-        # TODO: Move the result handling to a separate method
-        if spam_bot_result.result == MatchResult.MATCH:
-            module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
-                               str(spam_bot_result.message_score) + ' got flagged: ' + str(message.content))
-            # Create a new ban event and start the timer
-            ban_event = BanEvent(spam_bot_result, self.do_ban(spam_bot_result.message))
-            await ban_event.start()
-            self.add_ban_event(ban_event)
-
-            await message.channel.send(spam_bot_result.message.author.display_name + ' Got flagged by ' +
-                                       spam_bot_result.checker_name + ' (Use ?fp ' +
-                                       spam_bot_result.message.author.display_name + ' to report a false positive)')
-
-        elif spam_bot_result.result == MatchResult.IGNORED:
-            module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
-                               str(spam_bot_result.message_score) + ' got a pass (' +
-                               str(spam_bot_result.ignore_reason.name) + '): ' + str(message))
-            await message.channel.send('@' + spam_bot_result.message.author.display_name + ' You get a pass because: ' +
-                                       str(spam_bot_result.ignore_reason.name))
+        await self.handle_check_result(spam_bot_result)
 
         # Since we have commands and are overriding the default `event_message`
         # We must let the bot know we want to handle and invoke our commands...
