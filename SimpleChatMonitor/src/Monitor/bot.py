@@ -18,6 +18,7 @@ module_logger = logging.getLogger(__name__)
 # TODO: Allow full cyrillic sentence
 # TODO: Automate reporting?
 # TODO: Log follow time for ban restore
+# TODO: Check VIP badge
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
 
@@ -236,7 +237,8 @@ class BanEvent:
         else:
             module_logger.warning('Canceling ban on ' + str(self.check_result.message.author.display_name))
             self.ban_timer.cancel()
-            # TODO: Un-timeout/ban the user
+            await self.check_result.message.channel.send('/untimeout ' +
+                                                         str(self.check_result.message.author.display_name))
 
 
 class MyBot(commands.Bot):
