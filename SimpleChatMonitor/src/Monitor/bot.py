@@ -211,7 +211,7 @@ class MyBot(commands.Bot):
     async def hello(self, ctx: commands.Context):
         await ctx.send('Hello ' + str(ctx.author.name) + ', I am an automated bot made by nxt__1')
 
-    @commands.command()
+    @commands.command(aliases=('quit', 'q', 'stop'))
     async def leave(self, ctx: commands.Context):
         module_logger.warning('Leave command received, closing')
         if ctx.author.is_broadcaster or ctx.author.is_mod:
@@ -236,10 +236,13 @@ class MyBot(commands.Bot):
         if message.echo:
             return
 
+        # Log messages containing 'hammerboi'
         if 'hammerboi' in message.content:
             module_logger.info('Message to me from ' + str(message.author.name) + ': ' + str(message.content))
 
         spam_bot_result = await self.spam_bot_filter.check_message(message)
+
+        # TODO: Move the result handling to a separate method
         if spam_bot_result.result == MatchResult.MATCH:
             module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
                                str(spam_bot_result.message_score) + ' got flagged: ' + str(message))
