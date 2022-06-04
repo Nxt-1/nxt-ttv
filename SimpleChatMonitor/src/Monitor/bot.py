@@ -18,7 +18,6 @@ module_logger = logging.getLogger(__name__)
 # TODO: Allow full cyrillic sentence
 # TODO: Automate reporting?
 # TODO: Log follow time for ban restore
-# TODO: Check VIP badge
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
 
@@ -31,8 +30,9 @@ class MatchResult(Enum):
 
 class IgnoreReason(Enum):
     CHANNEL_STAFF = 1
-    SUBSCRIBER = 2
-    FOLLOWER = 3
+    VIP = 2
+    SUBSCRIBER = 3
+    FOLLOWER = 4
 
 
 class CheckResult:
@@ -75,6 +75,7 @@ class MessageChecker:
 
         # Options
         self.ignore_channel_staff = False
+        self.ignore_vip = False
         self.ignore_subscriber = False
         self.ignore_follower = False
 
@@ -116,10 +117,11 @@ class MessageChecker:
 
             # Read extra options
             self.ignore_channel_staff = config_json['options']['ignore_channel_staff']
+            self.ignore_vip = config_json['options']['ignore_vip']
             self.ignore_subscriber = config_json['options']['ignore_subscriber']
             self.ignore_follower = config_json['options']['ignore_follower']
-            module_logger.info('Loaded ignores: ' + str(self.ignore_channel_staff) + '|' + str(self.ignore_subscriber) +
-                               '|' + str(self.ignore_follower))
+            module_logger.info('Loaded ignores: ' + str(self.ignore_channel_staff) + '|' + str(self.ignore_vip) + '|' +
+                               str(self.ignore_subscriber) + '|' + str(self.ignore_follower))
 
             # Read the filter name
             self.name = config_json['name']
@@ -157,7 +159,7 @@ class MessageChecker:
                 result.message_score += self.cyrillics_score
         # </editor-fold>
 
-        # <editor-fold desc="Multipliers>
+        # <editor-fold desc="Multipliers">
         # Get the user chatter user object
         message_user = await message.author.user()
         # Get the channel user object
@@ -182,14 +184,19 @@ class MessageChecker:
                 result.result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.CHANNEL_STAFF
 
+        elif self.ignore_vip and 'vip' in message.author.badges.keys():
+            if result.result == MatchResult.MATCH:
+                result.result = MatchResult.IGNORED
+                result.ignore_reason = IgnoreReason.VIP
+
         # Ignore subscriber if needed
-        if self.ignore_subscriber and message.author.is_subscriber:
+        elif self.ignore_subscriber and message.author.is_subscriber:
             if result.result == MatchResult.MATCH:
                 result.result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.SUBSCRIBER
 
         # Ignore followers if needed
-        if self.ignore_follower and follow_event:
+        elif self.ignore_follower and follow_event:
             if result.result == MatchResult.MATCH:
                 result.result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.FOLLOWER
@@ -369,6 +376,7 @@ class MyBot(commands.Bot):
         if 'hammerboi' in message.content:
             module_logger.info('Message to me from ' + str(message.author.name) + ': ' + str(message.content))
 
+        # Check the message and handle the result
         spam_bot_result = await self.spam_bot_filter.check_message(message)
         await self.handle_check_result(spam_bot_result)
 

@@ -25,6 +25,7 @@
   },
   "options": {
     "ignore_channel_staff": true,
+    "ignore_vip": true,
     "ignore_subscriber": true,
     "ignore_follower": false
   }
