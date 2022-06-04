@@ -1,15 +1,17 @@
+import asyncio
 import json
 import logging
 import os
 import re
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Union, Callable, Coroutine, Optional
+from typing import Union, Callable, Coroutine, Optional, Dict
 
 import twitchio
 from twitchio.ext import commands
 
 from Monitor.Utils import constants
+from Monitor.Utils.custom_errors import CancelError
 
 module_logger = logging.getLogger(__name__)
 
@@ -195,6 +197,48 @@ class MessageChecker:
         return result
 
 
+class BanEvent:
+    def __init__(self, check_result: CheckResult, ban_method: Coroutine):
+        self.check_result = check_result  # The result from the MessageChecker
+        self.ban_method = ban_method  # The actual coroutine including parameters that will be executed after the timer is elapsed.
+        self.ban_timer: Optional[asyncio.TimerHandle] = None  # Placeholder for the asyncio timer
+        # TODO: Add 30s warning timer?
+
+    async def start(self) -> None:
+        """
+        Times out the user and start the ban timer. After the time specified in constants.MINUTES_BEFORE_BAN is elapsed,
+        the message author will be banned.
+        """
+
+        module_logger.info('Started ' + str(constants.MINUTES_BEFORE_BAN) + 'm ban event timer for user ' +
+                           str(self.check_result.message.author.display_name))
+        self.ban_timer = asyncio.get_running_loop().call_later(constants.MINUTES_BEFORE_BAN * 60, asyncio.create_task,
+                                                               self.ban_method)
+
+        # await self.check_result.message.channel.send('/delete '+str(self.check_result.message.tags['id']))
+        await self.check_result.message.channel.send('/timeout ' + str(self.check_result.message.author.display_name) +
+                                                     ' ' + str(constants.MINUTES_BEFORE_BAN) + 'm')
+
+    async def cancel(self) -> None:
+        """
+        Cancels the ban timer if it is currently running and not elapsed yet. After a cancel, the user is also
+        untimed-out and unbanned.
+
+        :return: True if the timer was successfully canceled, False otherwise
+        """
+
+        if not self.ban_timer:
+            raise CancelError('Unable to cancel the ban on ' + str(self.check_result.message.author.display_name) +
+                              ': timer not started')
+        elif self.ban_timer.cancelled():
+            raise CancelError('Unable to cancel the ban on ' + str(self.check_result.message.author.display_name) +
+                              ': timer already canceled')
+        else:
+            module_logger.warning('Canceling ban on ' + str(self.check_result.message.author.display_name))
+            self.ban_timer.cancel()
+            # TODO: Un-timeout/ban the user
+
+
 class MyBot(commands.Bot):
     def __init__(self, token: str, prefix: Union[str, list, tuple, set, Callable, Coroutine], client_secret: str = None,
                  initial_channels: Union[list, tuple, Callable] = None, heartbeat: Optional[float] = 30.0, **kwargs):
@@ -203,6 +247,8 @@ class MyBot(commands.Bot):
                          heartbeat=heartbeat, kwargs=kwargs)
 
         self.spam_bot_filter = MessageChecker(cyrillics_score=10)
+        self.ban_events: Dict[
+            str, BanEvent] = {}  # Dict containing all the currently active BanEvents (the author's display name is used as key)
 
     async def event_ready(self):
         module_logger.info('Bot is live, logged in as ' + str(self.nick))
@@ -228,8 +274,69 @@ class MyBot(commands.Bot):
 
     @commands.command()
     async def fp(self, ctx: commands.Context):
-        module_logger.warning('False positive was reported')
-        await ctx.send('False positive report received, thank you')
+        # TODO: Check user roles
+
+        # Check that a name was passed
+        if ctx.prefix + ctx.command.name == ctx.message.content:
+            module_logger.info('No name specified in fp command (' + ctx.message.content + '), ignoring')
+            await ctx.send('No name specified, try ' + ctx.prefix + ctx.command.name + ' name')
+            return
+
+        # Extract the name
+        name = ctx.message.content.replace(ctx.prefix + ctx.command.name + ' ', '')
+        # Remove an @ if it was passed
+        name = name.replace('@', '')
+
+        try:
+            await self.ban_events[name].cancel()
+            self.remove_ban_event(name)
+        except KeyError:
+            module_logger.warning('No open ban event for user ' + str(name) + ' found')
+            await ctx.send('No open ban event for user ' + str(name) + ' found')
+        except CancelError as e:
+            module_logger.error('Cancel error: ' + str(e))
+            await ctx.send(str(e))
+        else:
+            module_logger.info('Open ban event for user ' + str(name) + ' is removed')
+            await ctx.send('Ban event for ' + str(name) + ' successfully canceled')
+
+    def add_ban_event(self, ban_event: BanEvent) -> None:
+        """
+        Stores a new BanEvent in the system.
+
+        :param ban_event: The ban event to add
+        """
+
+        if ban_event.check_result.message.author.display_name in self.ban_events:
+            module_logger.warning('User ' + str(ban_event.check_result.message.author.display_name) +
+                                  ' is already in the ban events')
+        else:
+            module_logger.info('Adding new ban event for user ' +
+                               str(ban_event.check_result.message.author.display_name))
+            self.ban_events[ban_event.check_result.message.author.display_name] = ban_event
+
+    def remove_ban_event(self, name: str) -> None:
+        """
+        Remove a ban event for a user specified (display name). Note this does not untimeout/ban.
+
+        :param name: The display name of the user to remove the ban event for
+        """
+
+        try:
+            self.ban_events.pop(name)
+        except KeyError as e:
+            module_logger.warning('Failed to remove ban event for user ' + str(name) + ': ' + str(e))
+        else:
+            module_logger.info('Removed ban event for user ' + str(name))
+
+    async def do_ban(self, message: twitchio.Message) -> None:
+        """
+        Executes the user ban and clear the ban event from the system
+        """
+
+        module_logger.info('Executing ban on ' + message.author.display_name)
+        await message.channel.send('/ban ' + message.author.display_name)
+        self.ban_events.pop(message.author.display_name)
 
     async def event_message(self, message):
         # Ignore the bots own messages
@@ -246,11 +353,14 @@ class MyBot(commands.Bot):
         if spam_bot_result.result == MatchResult.MATCH:
             module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
                                str(spam_bot_result.message_score) + ' got flagged: ' + str(message.content))
-            # await message.channel.send('/delete '+str(message.tags['id']))
-            await message.channel.send('/timeout ' + str(spam_bot_result.message.author.display_name) + ' ' +
-                                       str(constants.MINUTES_BEFORE_BAN) + 'm')
+            # Create a new ban event and start the timer
+            ban_event = BanEvent(spam_bot_result, self.do_ban(spam_bot_result.message))
+            await ban_event.start()
+            self.add_ban_event(ban_event)
+
             await message.channel.send(spam_bot_result.message.author.display_name + ' Got flagged by ' +
-                                       spam_bot_result.checker_name + ' (?fp to report a false positive')
+                                       spam_bot_result.checker_name + ' (Use ?fp ' +
+                                       spam_bot_result.message.author.display_name + ' to report a false positive)')
 
         elif spam_bot_result.result == MatchResult.IGNORED:
             module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
