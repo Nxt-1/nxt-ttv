@@ -16,7 +16,6 @@ from Monitor.Utils.custom_errors import CancelError
 module_logger = logging.getLogger(__name__)
 
 # TODO: Allow full cyrillic sentence
-# TODO: Automate reporting?
 # TODO: Log follow time for ban restore
 IGNORED_SET = re.compile('[\W_]+')  # Regex to match any alphanumeric character
 
@@ -346,7 +345,7 @@ class MyBot(commands.Bot):
         Executes the user ban and clear the ban event from the system
         """
 
-        module_logger.info('Executing ban on ' + message.author.display_name)
+        module_logger.warning('Executing ban on ' + message.author.display_name)
         await message.channel.send('/ban ' + message.author.display_name)
         self.ban_events.pop(message.author.display_name)
 
