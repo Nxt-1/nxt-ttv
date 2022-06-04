@@ -245,7 +245,7 @@ class MyBot(commands.Bot):
         # TODO: Move the result handling to a separate method
         if spam_bot_result.result == MatchResult.MATCH:
             module_logger.info('Message from ' + spam_bot_result.message.author.display_name + ' with score ' +
-                               str(spam_bot_result.message_score) + ' got flagged: ' + str(message))
+                               str(spam_bot_result.message_score) + ' got flagged: ' + str(message.content))
             # await message.channel.send('/delete '+str(message.tags['id']))
             await message.channel.send('/timeout ' + str(spam_bot_result.message.author.display_name) + ' ' +
                                        str(constants.MINUTES_BEFORE_BAN) + 'm')
