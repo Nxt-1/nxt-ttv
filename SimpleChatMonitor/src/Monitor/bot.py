@@ -243,6 +243,9 @@ class BanEvent:
                               ': timer already canceled')
         else:
             module_logger.warning('Canceling ban on ' + str(self.check_result.message.author.display_name))
+            # If the method is not closed, an exception is thrown because the method was never awaited
+            self.ban_method.close()
+            # Cancel the timer as well
             self.ban_timer.cancel()
             await self.check_result.message.channel.send('/untimeout ' +
                                                          str(self.check_result.message.author.display_name))
