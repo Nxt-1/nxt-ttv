@@ -50,7 +50,6 @@ class CheckResult:
         self.result = result  # Result of the check
         self.ignore_reason = ignore_reason  # Reason why a match was ignored
         self.message_score = message_score  # Score of the message
-        # TODO: Add offending keywords?
 
 
 class MessageChecker:
@@ -167,8 +166,12 @@ class MessageChecker:
         follow_event = await message_user.fetch_follow(message_channel)
 
         if follow_event:
+            # If the author is following but for a short time, multiply the score
             if (datetime.now(tz=timezone.utc) - follow_event.followed_at).days <= self.follow_time_days_cutoff:
                 result.message_score *= self.follow_time_multiplier
+        else:
+            # If the author is not following at all, multiply the score to
+            result.message_score *= self.follow_time_multiplier
         # </editor-fold>
 
         if result.message_score >= self.min_score:
