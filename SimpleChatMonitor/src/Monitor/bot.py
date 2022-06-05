@@ -319,11 +319,11 @@ class MyBot(commands.Bot):
         """
         Triggers a reload for the filter
         """
-        
+
         module_logger.warning('Reloading filter config file')
         if ctx.author.is_broadcaster or ctx.author.is_mod:
             self.spam_bot_filter.read_config_file(constants.CONFIG_PATH)
-            await ctx.send('Reloaded filter file')
+            await ctx.send('Reloaded filter config file')
 
     def add_ban_event(self, ban_event: BanEvent) -> None:
         """
