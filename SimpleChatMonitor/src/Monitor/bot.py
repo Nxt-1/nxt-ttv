@@ -377,11 +377,18 @@ class MyBot(commands.Bot):
                                                     check_result.message.author.display_name + ' to report a false positive)')
 
         elif check_result.result == MatchResult.IGNORED:
-            module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
-                               str(check_result.message_score) + ' got a pass (' +
-                               str(check_result.ignore_reason.name) + '): ' + check_result.message.content)
-            await check_result.message.channel.send('@' + check_result.message.author.display_name +
-                                                    ' You get a pass because: ' + str(check_result.ignore_reason.name))
+            # Reduce loging for flags by SE
+            if check_result.message.author.display_name == 'StreamElements':
+                module_logger.debug('Message from ' + check_result.message.author.display_name + ' with score ' +
+                                    str(check_result.message_score) + ' got a pass (' +
+                                    str(check_result.ignore_reason.name) + '): ' + check_result.message.content)
+            else:
+                module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
+                                   str(check_result.message_score) + ' got a pass (' +
+                                   str(check_result.ignore_reason.name) + '): ' + check_result.message.content)
+                await check_result.message.channel.send('@' + check_result.message.author.display_name +
+                                                        ' You get a pass because: ' +
+                                                        str(check_result.ignore_reason.name))
 
     async def event_message(self, message):
         # Ignore the bots own messages
