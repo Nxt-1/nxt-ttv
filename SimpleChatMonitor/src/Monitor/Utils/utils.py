@@ -86,6 +86,6 @@ class GlobalTerminator(multiprocessing.Process):
         :param exit_code: The exit code for the main process
         """
 
-        # TODO: This method can no long be used
+        # TODO: This method can no long be used?
         module_logger.warning('Sending system terminate with code ' + str(exit_code) + '\n')
         self.process_pipe.send(exit_code)

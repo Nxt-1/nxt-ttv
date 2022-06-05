@@ -314,6 +314,17 @@ class MyBot(commands.Bot):
             module_logger.info('Open ban event for user ' + str(name) + ' is removed')
             await ctx.send('Ban event for ' + str(name) + ' successfully canceled')
 
+    @commands.command()
+    async def reload(self, ctx: commands.Context):
+        """
+        Triggers a reload for the filter
+        """
+        
+        module_logger.warning('Reloading filter config file')
+        if ctx.author.is_broadcaster or ctx.author.is_mod:
+            self.spam_bot_filter.read_config_file(constants.CONFIG_PATH)
+            await ctx.send('Reloaded filter file')
+
     def add_ban_event(self, ban_event: BanEvent) -> None:
         """
         Stores a new BanEvent in the system.
