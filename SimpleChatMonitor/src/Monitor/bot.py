@@ -28,10 +28,11 @@ class MatchResult(Enum):
 
 
 class IgnoreReason(Enum):
-    CHANNEL_STAFF = 1
-    VIP = 2
-    SUBSCRIBER = 3
-    FOLLOWER = 4
+    FRIENDLY_BOT = 1
+    CHANNEL_STAFF = 2
+    VIP = 3
+    SUBSCRIBER = 4
+    FOLLOWER = 5
 
 
 class CheckResult:
@@ -71,7 +72,11 @@ class MessageChecker:
         self.follow_time_days_cutoff = 0  # Cutoff value in days for the following score multiplier
         self.follow_time_multiplier = 1  # Message score gets multiplied by this if the author was following for the cutoff value or less
 
+        # Friendly bot names
+        self.bot_names = []  # List with names of friendly bots
+
         # Options
+        self.silent_ignore_bots = False
         self.ignore_channel_staff = False
         self.ignore_vip = False
         self.ignore_subscriber = False
@@ -113,13 +118,19 @@ class MessageChecker:
             module_logger.info('Loaded follow-time multiplier ' + str(self.follow_time_multiplier) + ' (' +
                                str(self.follow_time_days_cutoff) + ' days cutoff)')
 
+            # Friendly bot names
+            self.bot_names = config_json['bot_names']
+            module_logger.info('Loaded ' + str(self.bot_names) + ' as friendly bots')
+
             # Read extra options
+            self.silent_ignore_bots = config_json['options']['silent_ignore_bots']
             self.ignore_channel_staff = config_json['options']['ignore_channel_staff']
             self.ignore_vip = config_json['options']['ignore_vip']
             self.ignore_subscriber = config_json['options']['ignore_subscriber']
             self.ignore_follower = config_json['options']['ignore_follower']
-            module_logger.info('Loaded ignores: ' + str(self.ignore_channel_staff) + '|' + str(self.ignore_vip) + '|' +
-                               str(self.ignore_subscriber) + '|' + str(self.ignore_follower))
+            module_logger.info('Loaded ignores: ' + str(self.silent_ignore_bots) + '|' + str(self.ignore_channel_staff)
+                               + '|' + str(self.ignore_vip) + '|' + str(self.ignore_subscriber) + '|' +
+                               str(self.ignore_follower))
 
             # Read the filter name
             self.name = config_json['name']
@@ -181,7 +192,12 @@ class MessageChecker:
 
         # <editor-fold desc="Ignore checking">
         # Ignore broadcaster/mods if needed
-        if self.ignore_channel_staff and (message.author.is_broadcaster or message.author.is_mod):
+        if self.silent_ignore_bots and message.author in self.bot_names:
+            if result.result == MatchResult.MATCH:
+                result.result = MatchResult.IGNORED
+                result.ignore_reason = IgnoreReason.FRIENDLY_BOT
+
+        elif self.ignore_channel_staff and (message.author.is_broadcaster or message.author.is_mod):
             if result.result == MatchResult.MATCH:
                 result.result = MatchResult.IGNORED
                 result.ignore_reason = IgnoreReason.CHANNEL_STAFF
@@ -377,11 +393,9 @@ class MyBot(commands.Bot):
                                                     check_result.message.author.display_name + ' to report a false positive)')
 
         elif check_result.result == MatchResult.IGNORED:
-            # Reduce loging for flags by SE
-            if check_result.message.author.display_name == 'StreamElements':
-                module_logger.debug('Message from ' + check_result.message.author.display_name + ' with score ' +
-                                    str(check_result.message_score) + ' got a pass (' +
-                                    str(check_result.ignore_reason.name) + '): ' + check_result.message.content)
+            # Don't log friendly bot results
+            if check_result.ignore_reason == IgnoreReason.FRIENDLY_BOT:
+                pass
             else:
                 module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
                                    str(check_result.message_score) + ' got a pass (' +

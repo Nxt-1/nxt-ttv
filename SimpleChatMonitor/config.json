@@ -24,7 +24,12 @@
     "follow_time_days_cutoff": 1,
     "follow_time_multiplier": 2
   },
+  "bot_names": [
+    "StreamElements",
+    "Moobot"
+  ],
   "options": {
+    "silent_ignore_bots": true,
     "ignore_channel_staff": true,
     "ignore_vip": true,
     "ignore_subscriber": true,
