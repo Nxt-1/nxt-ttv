@@ -73,6 +73,8 @@ class GlobalTerminator(multiprocessing.Process):
                 module_logger.info('Received exit code: ' + str(exit_code))
             except EOFError:
                 break
+            except KeyboardInterrupt:
+                break
             else:
                 module_logger.warning('Shutting down the system')
                 self.is_term.set()

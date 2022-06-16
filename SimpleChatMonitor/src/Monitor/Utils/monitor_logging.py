@@ -3,7 +3,7 @@ import multiprocessing
 import sys
 import time
 
-import Monitor
+from ..version import __version__
 
 module_logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class CustomFormatter(logging.Formatter):
     bold_red = "\x1b[31;1m"
     purple = "\x1b[35m"
     reset = "\x1b[0m"
-    format = 'v' + str(Monitor.__version__) + \
+    format = 'v' + str(__version__) + \
              ' %(asctime)s [%(levelname)-8s] [%(name)s - %(funcName)s]  %(message)s'
 
     FORMATS = {
