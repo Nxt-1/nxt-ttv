@@ -1,3 +1,7 @@
+## [2.1.0] - 19-06-2022
+
+- Integrated bot commands in the logging output
+
 ## [2.0.0] - 16-06-2022
 
 - New version structure

@@ -1,7 +1,10 @@
 import asyncio
+import logging
 import string
 import sys
 from contextlib import suppress
+
+module_logger = logging.getLogger(__name__)
 
 
 class Cmd:
@@ -30,17 +33,17 @@ class Cmd:
 
     @staticmethod
     def do_test(arg):
-        print("Called buildin function do_test with args:", arg)
+        module_logger.cmd("Called build-in function do_test with args:" + arg)
 
     def do_help(self, arg):
-        print("Default help handler. Have arg :", arg, ", but ignore its.")
-        print("Available command list: ")
+        module_logger.cmd("Default help handler. Have arg :" + arg + ", but ignore its.")
+        module_logger.cmd("Available command list: ")
         for i in dir(self.__class__):
             if i.startswith("do_"):
-                print(" - ", i[3:])
+                module_logger.cmd(" - " + i[3:])
 
     def do_exit(self, arg):
-        print("Rescue exit!!")
+        module_logger.cmd("Rescue exit!!")
         raise KeyboardInterrupt
 
     #
@@ -78,14 +81,14 @@ class Cmd:
         # Start or not loop.run_forever
         if self.run_loop:
             try:
-                print("Cmd._start_controller start loop inside Cmd object!")
+                module_logger.cmd("Cmd._start_controller start loop inside Cmd object!")
                 self.stdout.flush()
                 self.loop.run_forever()
             except KeyboardInterrupt:
-                print("Cmd._start_controller stop loop. Bye.")
+                module_logger.cmd("Cmd._start_controller stop loop. Bye.")
                 self.loop.stop()
                 pending = asyncio.all_tasks(loop=self.loop)
-                print(pending)
+                module_logger.cmd(pending)
                 for task in pending:
                     task.cancel()
                     with suppress(asyncio.CancelledError):
@@ -116,7 +119,7 @@ class Cmd:
             line = await self.loop.run_in_executor(None, sys.stdin.readline)
             sys.stdout.flush()
             self._exec_cmd(line)
-            print(self.prompt)
+            module_logger.cmd(self.prompt)
             sys.stdout.flush()
 
     #
@@ -163,10 +166,10 @@ class Cmd:
 
     @staticmethod
     def _default(line):
-        print("Invalid command: ", line)
+        module_logger.cmd("Invalid command: " + line)
 
     async def _greeting(self):
-        print(self.intro)
+        module_logger.cmd(self.intro)
         self.stdout.write(self.prompt)
         self.stdout.flush()
 
@@ -177,9 +180,9 @@ class Cmd:
         :return: None
         """
         if self.lastcmd:
-            print("Empty line. Try to repeat last command.", line)
+            module_logger.cmd("Empty line. Try to repeat last command." + line)
             self._exec_cmd(self.lastcmd)
             return
         else:
-            print("Empty line. Nothing happen.", line)
+            module_logger.cmd("Empty line. Nothing happen." + line)
             return
