@@ -2,7 +2,7 @@ import logging
 import multiprocessing
 import sys
 
-from Monitor.bot import TwitchBot
+from Monitor.bot import NxtBot
 from Monitor.Utils import monitor_logging, utils, constants
 
 module_logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def main():
 
     module_logger.info('Nxt Twitch chat monitor is ready')
 
-    bot = TwitchBot(token=args.token, prefix='?', initial_channels=['nxt__1', 'deathy_tv'])
+    bot = NxtBot(token=args.token, prefix='?', initial_channels=['nxt__1', 'deathy_tv'])
     bot.run()
 
     module_logger.info('Bot exited')

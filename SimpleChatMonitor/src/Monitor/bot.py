@@ -3,12 +3,12 @@ import logging
 import sys
 
 from asynccmd import Cmd
-from Monitor.filter_bot import FilterBot
+from Monitor.filter_bot import TwitchBot
 
 module_logger = logging.getLogger(__name__)
 
 
-class TwitchBot(Cmd):
+class NxtBot(Cmd):
     def __init__(self, token, prefix, initial_channels, loop: asyncio.AbstractEventLoop = None):
         if sys.platform == 'win32':
             mode = "Run"
@@ -18,16 +18,16 @@ class TwitchBot(Cmd):
         self.intro = 'Welcome to twitchbot shell. Type help or ? to list commands.\n'
         self.prompt = 'bot: '
 
-        # The asyncio event loop that both the Cmd class and FilterBot class will use
+        # The asyncio event loop that both the Cmd class and TwitchBot class will use
         self.loop = asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
 
-        self.filter_bot = FilterBot(loop=loop, token=token, prefix=prefix, initial_channels=initial_channels)
+        self.filter_bot = TwitchBot(loop=loop, token=token, prefix=prefix, initial_channels=initial_channels)
 
     def run(self):
         # Pass the asyncio loop the Cmd class and start the instance
         super().cmdloop(self.loop)
         sys.stdout.flush()
-        # Pass the asyncio loop to the FilterBot class, and it will start the event loop
+        # Pass the asyncio loop to the TwitchBot class, and it will start the event loop
         self.filter_bot.run()
 
     def do_say(self, arg):

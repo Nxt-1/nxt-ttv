@@ -16,11 +16,10 @@ from Monitor.Utils.custom_errors import CancelError
 module_logger = logging.getLogger(__name__)
 
 # TODO: Allow full cyrillic sentence
-# TODO: Log follow time for ban restore
 IGNORED_SET = re.compile(r'[\W_]+')  # Regex to match any alphanumeric character
 
 
-class MatchResult(Enum):
+class CheckResultType(Enum):
     MATCH = 1  # Message was matched
     NO_MATCH = 2  # Message was not matched
     IGNORED = 3  # Message was matched but ignored
@@ -39,16 +38,16 @@ class CheckResult:
     """
     Details the result of a MessageChecker run.
 
-    The actual result of the check is stored in 'self.result'. If the result was IGNORED, the reason will be
+    The actual result of the check is stored in 'self.result_type'. If the result was IGNORED, the reason will be
     detailed in 'self.ignore_reason'.
     The total score for the message as well as the display name of the user who sent it, are passed as well.
     """
 
-    def __init__(self, checker_name: str, message: twitchio.Message, result: MatchResult = None,
+    def __init__(self, checker_name: str, message: twitchio.Message, result_type: CheckResultType = None,
                  ignore_reason: IgnoreReason = None, message_score: float = 0):
         self.checker_name = checker_name  # The name of the MessageChecker that produced this result
         self.message = message  # The twitchio message instance
-        self.result = result  # Result of the check
+        self.result_type = result_type  # Type of result
         self.ignore_reason = ignore_reason  # Reason why a match was ignored
         self.message_score = message_score  # Score of the message
 
@@ -149,7 +148,7 @@ class MessageChecker:
         # Check that config file was read and overwrite the default name
         if self.name == 'default':
             module_logger.warning('Message checker did not read config file: check will not be run')
-            result.result = MatchResult.ERROR
+            result.result_type = CheckResultType.ERROR
             return result
 
         # <editor-fold desc="Message filtering">
@@ -186,37 +185,37 @@ class MessageChecker:
         # </editor-fold>
 
         if result.message_score >= self.min_score:
-            result.result = MatchResult.MATCH
+            result.result_type = CheckResultType.MATCH
         else:
-            result.result = MatchResult.NO_MATCH
+            result.result_type = CheckResultType.NO_MATCH
 
         # <editor-fold desc="Ignore checking">
         # Ignore broadcaster/mods if needed
         if self.silent_ignore_bots and message.author.display_name in self.bot_names:
-            if result.result == MatchResult.MATCH:
-                result.result = MatchResult.IGNORED
+            if result.result_type == CheckResultType.MATCH:
+                result.result_type = CheckResultType.IGNORED
                 result.ignore_reason = IgnoreReason.FRIENDLY_BOT
 
         elif self.ignore_channel_staff and (message.author.is_broadcaster or message.author.is_mod):
-            if result.result == MatchResult.MATCH:
-                result.result = MatchResult.IGNORED
+            if result.result_type == CheckResultType.MATCH:
+                result.result_type = CheckResultType.IGNORED
                 result.ignore_reason = IgnoreReason.CHANNEL_STAFF
 
         elif self.ignore_vip and 'vip' in message.author.badges.keys():
-            if result.result == MatchResult.MATCH:
-                result.result = MatchResult.IGNORED
+            if result.result_type == CheckResultType.MATCH:
+                result.result_type = CheckResultType.IGNORED
                 result.ignore_reason = IgnoreReason.VIP
 
         # Ignore subscriber if needed
         elif self.ignore_subscriber and message.author.is_subscriber:
-            if result.result == MatchResult.MATCH:
-                result.result = MatchResult.IGNORED
+            if result.result_type == CheckResultType.MATCH:
+                result.result_type = CheckResultType.IGNORED
                 result.ignore_reason = IgnoreReason.SUBSCRIBER
 
         # Ignore followers if needed
         elif self.ignore_follower and follow_event:
-            if result.result == MatchResult.MATCH:
-                result.result = MatchResult.IGNORED
+            if result.result_type == CheckResultType.MATCH:
+                result.result_type = CheckResultType.IGNORED
                 result.ignore_reason = IgnoreReason.FOLLOWER
         # </editor-fold>
 
@@ -268,7 +267,7 @@ class BanEvent:
                                                          str(self.check_result.message.author.display_name))
 
 
-class FilterBot(commands.Bot):
+class TwitchBot(commands.Bot):
     def __init__(self, token: str, prefix: Union[str, list, tuple, set, Callable, Coroutine], client_secret: str = None,
                  initial_channels: Union[list, tuple, Callable] = None, heartbeat: Optional[float] = 30.0, **kwargs):
 
@@ -379,7 +378,7 @@ class FilterBot(commands.Bot):
         self.ban_events.pop(message.author.display_name)
 
     async def handle_check_result(self, check_result: CheckResult):
-        if check_result.result == MatchResult.MATCH:
+        if check_result.result_type == CheckResultType.MATCH:
             module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
                                str(check_result.message_score) + ' got flagged: ' + check_result.message.content)
             # Create a new ban event and start the timer
@@ -391,7 +390,7 @@ class FilterBot(commands.Bot):
                                                     check_result.checker_name + ' (Use ?fp ' +
                                                     check_result.message.author.display_name + ' to report a false positive)')
 
-        elif check_result.result == MatchResult.IGNORED:
+        elif check_result.result_type == CheckResultType.IGNORED:
             # Don't log friendly bot results
             if check_result.ignore_reason == IgnoreReason.FRIENDLY_BOT:
                 pass
