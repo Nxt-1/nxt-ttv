@@ -1,3 +1,8 @@
+## [2.2.0] - 20-06-2022
+
+- Refactoring
+- Gamble bot
+
 ## [2.1.0] - 19-06-2022
 
 - Integrated bot commands in the logging output
