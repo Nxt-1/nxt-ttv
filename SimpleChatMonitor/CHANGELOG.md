@@ -2,6 +2,7 @@
 
 - Refactoring
 - Gamble bot
+- Updated config
 
 ## [2.1.0] - 19-06-2022
 
