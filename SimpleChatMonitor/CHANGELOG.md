@@ -4,6 +4,7 @@
 - Gamble bot
 - Updated config
 - Added channels to join to the launch arguments
+- MIT license
 
 ## [2.1.0] - 19-06-2022
 
