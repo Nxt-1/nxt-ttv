@@ -46,7 +46,7 @@ def main():
 
     module_logger.info('Nxt Twitch chat monitor is ready')
 
-    bot = NxtBot(token=args.token, prefix='?', initial_channels=['nxt__1', 'deathy_tv'])
+    bot = NxtBot(token=args.token, prefix='?', initial_channels=args.channels)
     bot.run()
 
     module_logger.info('Bot exited')
