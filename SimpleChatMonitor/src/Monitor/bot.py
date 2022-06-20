@@ -3,7 +3,7 @@ import logging
 import sys
 
 from asynccmd import Cmd
-from Monitor.filter_bot import TwitchBot
+from Monitor.twitch_bot import TwitchBot
 
 module_logger = logging.getLogger(__name__)
 
