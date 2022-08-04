@@ -2,6 +2,7 @@ import logging.handlers
 import multiprocessing
 import sys
 import time
+from typing import Optional
 
 from ..version import __version__
 
@@ -119,6 +120,7 @@ class LogListener(multiprocessing.Process):
         root_logger.addHandler(log_console_h)
         # root_logger.addHandler(log_file_h)
 
+        error_msg: Optional[str] = None  # Placeholder for the eventual exit reason
         while not self.global_is_term.is_set():
             # Normal log processing
             try:
@@ -128,18 +130,18 @@ class LogListener(multiprocessing.Process):
                 logger = logging.getLogger(record.name)
                 logger.handle(record)
             except KeyboardInterrupt:
-                sys.stderr.write('Log listener KeyboardInterrupt\n')
+                error_msg = 'KeyboardInterrupt'
                 break
             except (IOError, EOFError, BrokenPipeError, ConnectionResetError) as e:
-                sys.stderr.write('Multiprocessing logger pipe broke: ' + str(e) + '\n')
+                error_msg = 'pipe broke: ' + str(e)
                 break
             except Exception as e:
-                sys.stderr.write('Log listener error: ' + str(e) + '\n')
+                error_msg = 'unexpected exit: ' + str(e)
                 break
 
             time.sleep(0)
 
-        sys.stdout.write('Logger exited - further logging will not be processed!\n')
+        sys.stdout.write('\nLogger exited - further logging will not be processed: ' + error_msg + '\n')
 
 
 def log_worker_configurer(log_queue, log_lvl: str) -> None:
