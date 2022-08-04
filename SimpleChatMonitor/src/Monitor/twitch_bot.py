@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import math
 import multiprocessing
 import os
 import re
@@ -242,7 +243,6 @@ class BanEvent:
         self.ban_timer = asyncio.get_running_loop().call_later(constants.MINUTES_BEFORE_BAN * 60, asyncio.create_task,
                                                                self.ban_method)
 
-        # await self.check_result.message.channel.send('/delete '+str(self.check_result.message.tags['id']))
         await self.check_result.message.channel.send('/timeout ' + str(self.check_result.message.author.display_name) +
                                                      ' ' + str(constants.MINUTES_BEFORE_BAN) + 'm')
 
@@ -271,6 +271,8 @@ class BanEvent:
 
 
 class GambleParser:
+    MAX_LOSS_FACTOR = 500
+
     def __init__(self, own_name: str, loop):
         """
         Class that facilitates StreamElements gambling.
@@ -336,7 +338,13 @@ class GambleParser:
                 if self.gambles_remaining.value > 0:
                     if result > 0:
                         bet = self.__gamble_base
+                    elif result < self.__gamble_base * GambleParser.MAX_LOSS_FACTOR * -1:
+                        module_logger.info('Massive loss, stopping now')
+                        with self.gambles_remaining.get_lock():
+                            self.gambles_remaining.value = 0
+                        continue
                     else:
+                        # Normal loss
                         bet = result * -2
 
                     await self.send_gamble(channel, bet)
@@ -537,6 +545,11 @@ class TwitchBot(commands.Bot):
         # Log messages containing 'hammerboi'
         if 'hammerboi' in message.content and message.author.display_name != 'StreamElements':
             module_logger.info('Message to me from ' + str(message.author.name) + ': ' + str(message.content))
+
+        # nxt = ['nxt', 'Nxt', 'Nxt__1']
+        # if any(x in message.content for x in nxt):
+        #     module_logger.info('Protest')
+        #     await message.channel.send('Nxt is on a strike to protest against Deathy.')
 
         # Check the message and handle the result
         spam_bot_result = await self.spam_bot_filter.check_message(message)

@@ -1,6 +1,7 @@
 ## [2.3.0] - 04-08-2022
 
 - Logger exits cleaner
+- Implemented a max loss factor for the gambler
 
 ## [2.2.0] - 20-06-2022
 
