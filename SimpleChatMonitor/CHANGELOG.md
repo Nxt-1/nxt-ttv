@@ -3,6 +3,7 @@
 - Logger exits cleaner
 - Implemented a max loss factor for the gambler
 - Implemented a voting system
+- Separated twitch bot functionality in to its own module
 
 ## [2.2.0] - 20-06-2022
 
