@@ -29,6 +29,7 @@ class TwitchBot(commands.Bot):
         self.break_voter = Voter(self.mp_manager, votes_required=5, vote_period=60, fail_timeout_s=10 * 60,
                                  pass_timeout_s=3 * 60 * 60, double_names={'ninariioforien'},
                                  announce_message='We are voting to make Deathy take 3 minute break. Vote by typing ?votebreak')
+        self.balance_start: int = 0  # Starting balance for Arkas's sellout stream
 
     async def event_ready(self):
         module_logger.info('Bot is live, logged in as ' + str(self.nick))
@@ -99,6 +100,40 @@ class TwitchBot(commands.Bot):
 
         if ctx.channel.name == 'deathy_tv':
             await self.break_voter.add_vote(ctx.message)
+
+    @commands.command()
+    async def set_balance(self, ctx: commands.Context):
+        """"
+        Sets the initial balance for Arkas's sellout streams
+        """
+
+        if ctx.channel.name == 'arkas':
+            # Check that a balance was passed
+            if ctx.prefix + ctx.command.name == ctx.message.content:
+                module_logger.info('No balance specified in profit command (' + ctx.message.content + '), ignoring')
+                await ctx.send('No balance specified, try ' + ctx.prefix + ctx.command.name + ' <balance>')
+                return
+
+            # Extract balance
+            self.balance_start = int(ctx.message.content.replace(ctx.prefix + ctx.command.name + ' ', ''))
+            await ctx.channel.send('Balance updated to: '+str(self.balance_start))
+
+    @commands.command()
+    async def profit(self, ctx: commands.Context):
+        """"
+        Handles the profit calculation for Arkas's sellout streams
+        """
+
+        if ctx.channel.name == 'arkas':
+            # Check that a balance was passed
+            if ctx.prefix + ctx.command.name == ctx.message.content:
+                module_logger.info('No balance specified in profit command (' + ctx.message.content + '), ignoring')
+                await ctx.send('No balance specified, try ' + ctx.prefix + ctx.command.name + ' <balance>')
+                return
+
+            # Extract balance
+            balance = int(ctx.message.content.replace(ctx.prefix + ctx.command.name + ' ', ''))
+            await ctx.channel.send('Current profit is: ' + str(balance-self.balance_start))
 
     def add_ban_event(self, ban_event: BanEvent) -> None:
         """
