@@ -82,7 +82,7 @@ class MessageChecker:
         self.ignore_subscriber = False
         self.ignore_follower = False
 
-        self.read_config_file(constants.CONFIG_PATH)
+        self.read_config_file(constants.FILTER_CONFIG_PATH)
 
         module_logger.info('=== ' + self.name + ' filter completed initializing ===')
 

@@ -5,6 +5,7 @@ PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGS_PATH = os.path.abspath('../../Logs')
 LOGGING_LEVEL = 'debug'
 
-CONFIG_PATH = os.path.abspath('../../config.json')
+FILTER_CONFIG_PATH = os.path.abspath('../../bot-filter.json')
+NOTIFICATION_CONFIG_PATH = os.path.abspath('../../notifications.json')
 
 MINUTES_BEFORE_BAN = 2

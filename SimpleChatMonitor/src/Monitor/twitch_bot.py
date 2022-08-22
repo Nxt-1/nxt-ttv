@@ -89,7 +89,7 @@ class TwitchBot(commands.Bot):
 
         module_logger.warning('Reloading filter config file')
         if ctx.author.is_broadcaster or ctx.author.is_mod:
-            self.spam_bot_filter.read_config_file(constants.CONFIG_PATH)
+            self.spam_bot_filter.read_config_file(constants.FILTER_CONFIG_PATH)
             await ctx.send('Reloaded complete, I feel even more powerful now')
 
     @commands.command()
