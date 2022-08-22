@@ -27,7 +27,7 @@ class TwitchBot(commands.Bot):
             str, BanEvent] = {}  # Dict containing all the currently active BanEvents (the author's name is used as key)
         self.gamble_bot = GambleParser('nxthammerboi', self.loop)
         self.break_voter = Voter(self.mp_manager, votes_required=5, vote_period=60, fail_timeout_s=10 * 60,
-                                 pass_timeout_s=3 * 60 * 60, double_names={'ninariioforien'},
+                                 pass_timeout_s=3 * 60 * 60, double_names={'ninariioforien', 'MistressViolet68'},
                                  announce_message='We are voting to make Deathy take 3 minute break. Vote by typing ?votebreak')
         self.balance_start: int = 0  # Starting balance for Arkas's sellout stream
 
@@ -171,7 +171,10 @@ class TwitchBot(commands.Bot):
 
         module_logger.warning('Executing ban on ' + message.author.display_name)
         await message.channel.send('/ban ' + message.author.display_name)
-        self.ban_events.pop(message.author.display_name)
+        try:
+            self.ban_events.pop(message.author.display_name)
+        except KeyError:
+            module_logger.debug('Ignoring duplicate delete for user ' + str(message.author.display_name))
 
     async def handle_check_result(self, check_result: CheckResult):
         if check_result.result_type == CheckResultType.MATCH:

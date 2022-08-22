@@ -1,3 +1,8 @@
+## [2.3.1] - 22-08-2022
+
+- Fixed issue where a user that got flagged multiple times caused an error
+- Added MistressViolet68 to the special list
+
 ## [2.3.0] - 04-08-2022
 
 - Logger exits cleaner
