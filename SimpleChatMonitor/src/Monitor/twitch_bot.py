@@ -8,6 +8,7 @@ from twitchio.ext import commands
 from Monitor.twitchbot_functions.gambling import GambleParser
 from Monitor.twitchbot_functions.message_filter import MessageChecker, BanEvent, CheckResult, CheckResultType, \
     IgnoreReason
+from Monitor.twitchbot_functions.notifications import Notifier
 from Monitor.twitchbot_functions.voting import Voter
 from Monitor.Utils import constants
 from Monitor.Utils.custom_errors import CancelError
@@ -29,7 +30,7 @@ class TwitchBot(commands.Bot):
         self.break_voter = Voter(self.mp_manager, votes_required=5, vote_period=60, fail_timeout_s=10 * 60,
                                  pass_timeout_s=3 * 60 * 60, double_names={'ninariioforien', 'MistressViolet68'},
                                  announce_message='We are voting to make Deathy take 3 minute break. Vote by typing ?votebreak')
-        self.balance_start: int = 0  # Starting balance for Arkas's sellout stream
+        self.notifier = Notifier()
 
     async def event_ready(self):
         module_logger.info('Bot is live, logged in as ' + str(self.nick))
@@ -206,10 +207,6 @@ class TwitchBot(commands.Bot):
         if message.echo:
             return
 
-        # Log messages containing 'hammerboi'
-        if 'hammerboi' in message.content and message.author.display_name != 'StreamElements':
-            module_logger.info('Message to me from ' + str(message.author.name) + ': ' + str(message.content))
-
         # nxt = ['nxt', 'Nxt', 'Nxt__1']
         # if any(x in message.content for x in nxt):
         #     module_logger.info('Protest')
@@ -223,6 +220,9 @@ class TwitchBot(commands.Bot):
             gamble_result = self.gamble_bot.parse_message(message)
             if gamble_result:
                 self.gamble_bot.result_q.put_nowait(gamble_result)
+
+        # Send notifications for specific message keywords
+        self.notifier.check_message(message)
 
         # Since we have commands and are overriding the default `event_message`
         # We must let the bot know we want to handle and invoke our commands...

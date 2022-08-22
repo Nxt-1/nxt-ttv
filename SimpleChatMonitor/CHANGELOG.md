@@ -1,3 +1,8 @@
+## [2.4.0] - 22-08-2022
+
+- Refactored bot-filter files
+- Added dedicated notifier
+
 ## [2.3.1] - 22-08-2022
 
 - Fixed issue where a user that got flagged multiple times caused an error
