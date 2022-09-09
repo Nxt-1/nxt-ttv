@@ -18,7 +18,7 @@ class Voter:
         self.vote_period = vote_period  # Time in seconds before the vote-count is reset
         self.fail_timeout_s = fail_timeout_s  # Time in seconds between failed vote rounds
         self.pass_timeout_s = pass_timeout_s  # Time in seconds between passed vote rounds
-        self.double_names = double_names  # List of chatter names whose vote's count double
+        self.double_names = double_names  # Set of chatter names whose vote's count double
 
         module_logger.info('Voter added with ' + str(self.votes_required) + ' required votes in ' +
                            str(self.vote_period) + 's, timout: ' + str(self.fail_timeout_s) + '|' +
@@ -37,11 +37,13 @@ class Voter:
             n_votes_pre = len(self.voters.keys())
             self.voters.update({chatter_message.author.display_name: None})
             # Some names count double
-            if chatter_message.author.display_name == self.double_names:
+            if chatter_message.author.display_name in self.double_names:
+                module_logger.debug('Double vote added for: ' + chatter_message.author.display_name)
                 self.voters.update({chatter_message.author.display_name + '_2': None})
             n_votes_post = len(self.voters.keys())
             if n_votes_post > n_votes_pre:
-                if n_votes_post == 1:
+                # Do some stuff for new vote rounds
+                if n_votes_pre == 0:
                     # Start the vote end timer
                     self.vote_end_coro = self.voting_end(chatter_message.channel, self.fail_timeout_s)
                     self.vote_end_timer = asyncio.get_running_loop().call_later(self.vote_period, asyncio.create_task,
@@ -49,15 +51,18 @@ class Voter:
                     # Let the chatter know the vote registered
                     await chatter_message.channel.send(str(chatter_message.author.display_name) +
                                                        ' Started a new vote. You have ' + str(self.vote_period) +
-                                                       's to get ' + str(self.votes_required - 1) + ' more votes')
-                    module_logger.info('New vote started (' + str(n_votes_post) + '/' + str(self.votes_required) + ')')
+                                                       's to get ' + str(self.votes_required - n_votes_post) +
+                                                       ' more votes')
+                    module_logger.info('New vote started (' + str(n_votes_post) + '/' + str(self.votes_required) +
+                                       ') by ' + chatter_message.author.display_name)
                     await chatter_message.channel.send('/announce ' + self.announce_message)
                 else:
                     # Let the chatter know the vote registered
                     await chatter_message.channel.send(str(chatter_message.author.display_name) +
                                                        ' Your vote was registered. (' + str(len(self.voters.keys())) +
                                                        '/' + str(self.votes_required) + ')')
-                    module_logger.info('Vote added (' + str(n_votes_post) + '/' + str(self.votes_required) + ')')
+                    module_logger.info('Vote added (' + str(n_votes_post) + '/' + str(self.votes_required) + ') by ' +
+                                       chatter_message.author.display_name)
             else:
                 pass
                 # Ignore double votes
