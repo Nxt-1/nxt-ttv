@@ -1,3 +1,8 @@
+## [2.4.1] - 09-09-2022
+
+- Fixed double count votes
+- Fixed false positive notifications on partial word matches
+
 ## [2.4.0] - 22-08-2022
 
 - Refactored bot-filter files

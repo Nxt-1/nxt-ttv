@@ -1,8 +1,7 @@
 import json
 import logging
 import os
-import re
-from typing import Optional
+from typing import Set
 
 import twitchio
 import winotify
@@ -14,7 +13,7 @@ module_logger = logging.getLogger(__name__)
 
 class Notifier:
     def __init__(self):
-        self.keywords: Optional[re.Pattern] = None  # Regex matching all keywords that should trigger a notification
+        self.keywords: Set[str] = set()  # Regex matching all keywords that should trigger a notification
         self.notification_duration = ''  # Duration of notifications, can be 'short' or 'long'
 
         self.read_config_file(constants.NOTIFICATION_CONFIG_PATH)
@@ -33,13 +32,12 @@ class Notifier:
             module_logger.error('Could not find config file at ' + str(os.path.abspath(file_path)) + ': ' + str(e))
             return
         else:
-            # Read the keywords and compile them into one big regex pattern
-            self.keywords = r'.*\b(?=' + '|'.join(config_json['keywords']) + r')\b.*'
-
+            self.keywords = set(config_json['keywords'])
             self.notification_duration = config_json['duration']
 
     def check_message(self, message: twitchio.Message) -> None:
-        if re.match(self.keywords, str(message.content), re.IGNORECASE):
+        words = set(str(message.content).lower().split())
+        if self.keywords.intersection(words):
             notification = winotify.Notification(app_id='Twitch Bot',
                                                  title=str(message.author.display_name),
                                                  msg=str(message.content),
