@@ -3,7 +3,8 @@
   "flaggedTiers": {
     "1": [
       "buy",
-      "famous"
+      "famous",
+      "promoting"
     ],
     "2": [
       "viewers",
@@ -17,7 +18,8 @@
       "mountviewers",
       "mystrm",
       "yourfollowz",
-      "getviewers pro"
+      "getviewers pro",
+      "steamskill"
     ]
   },
   "minScore": 5,

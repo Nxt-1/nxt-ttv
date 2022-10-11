@@ -1,3 +1,8 @@
+## [2.4.2] - 11-10-2022
+
+- Updated keywords
+- Cleaned up unused code
+
 ## [2.4.1] - 09-09-2022
 
 - Fixed double count votes
