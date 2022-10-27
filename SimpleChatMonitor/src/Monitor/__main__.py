@@ -38,7 +38,6 @@ def main():
 
     # Configure logging for this module
     monitor_logging.log_worker_configurer(log_queue, constants.LOGGING_LEVEL)
-    # module_logger.info('Logging into folder: ' + str(Constants.LOGS_PATH))
 
     logging.getLogger('twitchio').setLevel(logging.INFO)
 

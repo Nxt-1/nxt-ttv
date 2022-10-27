@@ -193,9 +193,8 @@ class MessageChecker:
         # <editor-fold desc="Ignore checking">
         # Ignore broadcaster/mods if needed
         if self.silent_ignore_bots and message.author.display_name in self.bot_names:
-            if result.result_type == CheckResultType.MATCH:
-                result.result_type = CheckResultType.IGNORED
-                result.ignore_reason = IgnoreReason.FRIENDLY_BOT
+            result.result_type = CheckResultType.IGNORED
+            result.ignore_reason = IgnoreReason.FRIENDLY_BOT
 
         elif self.ignore_channel_staff and (message.author.is_broadcaster or message.author.is_mod):
             if result.result_type == CheckResultType.MATCH:

@@ -144,6 +144,7 @@ class TwitchBot(commands.Bot):
             module_logger.debug('Ignoring duplicate delete for user ' + str(message.author.display_name))
 
     async def handle_check_result(self, check_result: CheckResult):
+        # Handle matches
         if check_result.result_type == CheckResultType.MATCH:
             module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
                                str(check_result.message_score) + ' got flagged: ' + check_result.message.content)
@@ -167,6 +168,12 @@ class TwitchBot(commands.Bot):
                 await check_result.message.channel.send('@' + check_result.message.author.display_name +
                                                         ' You get a pass because: ' +
                                                         str(check_result.ignore_reason.name))
+
+        # Log near misses
+        elif check_result.result_type == CheckResultType.NO_MATCH and check_result.message_score >= 2:
+            module_logger.debug('Message from ' + check_result.message.author.display_name + ' with score ' +
+                                str(check_result.message_score) + ' did not get flagged: ' +
+                                check_result.message.content)
 
     async def event_message(self, message):
         # Ignore the bots own messages
