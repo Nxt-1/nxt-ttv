@@ -5,13 +5,13 @@ from typing import Union, Callable, Coroutine, Optional, Dict
 import twitchio
 from twitchio.ext import commands
 
+from Monitor.Utils import constants
+from Monitor.Utils.custom_errors import CancelError
 from Monitor.twitchbot_functions.gambling import GambleParser
 from Monitor.twitchbot_functions.message_filter import MessageChecker, BanEvent, CheckResult, CheckResultType, \
     IgnoreReason
 from Monitor.twitchbot_functions.notifications import Notifier
 from Monitor.twitchbot_functions.voting import Voter
-from Monitor.Utils import constants
-from Monitor.Utils.custom_errors import CancelError
 
 module_logger = logging.getLogger(__name__)
 
@@ -27,8 +27,8 @@ class TwitchBot(commands.Bot):
         self.ban_events: Dict[
             str, BanEvent] = {}  # Dict containing all the currently active BanEvents (the author's name is used as key)
         self.gamble_bot = GambleParser('nxthammerboi', self.loop)
-        self.break_voter = Voter(self.mp_manager, votes_required=5, vote_period=60, fail_timeout_s=10 * 60,
-                                 pass_timeout_s=3 * 60 * 60, double_names={'ninariioforien', 'MistressViolet68'},
+        self.break_voter = Voter(self.mp_manager, votes_required=3, vote_period=60, fail_timeout_s=10 * 60,
+                                 pass_timeout_s=3 * 60 * 60, double_names={'ninariiofcannith', 'MistressViolet68'},
                                  announce_message='We are voting to make Deathy take 3 minute break. Vote by typing ?votebreak')
         self.notifier = Notifier()
 
@@ -52,7 +52,7 @@ class TwitchBot(commands.Bot):
     @commands.command()
     async def goal(self, ctx: commands.Context):
         await ctx.send('Hi, I am a bot and for now my only goal is boot pesky spam/phishing bots out of here. Oh, and '
-                       'world dominion ofcourse.')
+                       'world dominion of course.')
 
     @commands.command()
     async def fp(self, ctx: commands.Context):
