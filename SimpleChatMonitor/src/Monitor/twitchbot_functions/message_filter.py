@@ -5,7 +5,7 @@ import os
 import re
 from datetime import timezone, datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 from typing_extensions import Coroutine
 
@@ -56,13 +56,14 @@ class CheckResult:
 class MessageChecker:
     CYRILLIC_RE = re.compile(r'[А-Яа-яЁё]+', re.IGNORECASE)  # Regex to match any cyrillic character
 
-    def __init__(self, cyrillics_score: float = None):
+    def __init__(self, token: str, cyrillics_score: float = None):
         """
         :param cyrillics_score: Score to add in case any cyrillic character is found in the message, None to
         disable (default)
         """
 
         self.name = 'default'  # Descriptor for the specific filter
+        self.token = token  # User access token that includes the moderation:read:followers scope for the channel
         # Filter
         self.flagged_re: dict[str, re.Pattern] = {}
         self.cyrillics_score = cyrillics_score
@@ -174,11 +175,11 @@ class MessageChecker:
         # Get the channel user object
         message_channel = await message.channel.user()
         # Check if the chatter user is following the channel user
-        follow_event = await message_user.fetch_follow(message_channel)
+        follow_event_list = (await message_channel.fetch_channel_followers(token=self.token, user_id=message_user.id))
 
-        if follow_event:
+        if follow_event_list:
             # If the author is following but for a short time, multiply the score
-            if (datetime.now(tz=timezone.utc) - follow_event.followed_at).days <= self.follow_time_days_cutoff:
+            if (datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at).days <= self.follow_time_days_cutoff:
                 result.message_score *= self.follow_time_multiplier
         else:
             # If the author is not following at all, multiply the score to
@@ -213,7 +214,7 @@ class MessageChecker:
                 result.ignore_reason = IgnoreReason.SUBSCRIBER
 
         # Ignore followers if needed
-        elif self.ignore_follower and follow_event:
+        elif self.ignore_follower and follow_event_list[0]:
             if result.result_type == CheckResultType.MATCH:
                 result.result_type = CheckResultType.IGNORED
                 result.ignore_reason = IgnoreReason.FOLLOWER

@@ -1,3 +1,9 @@
+
+## [2.4.3] - 06-04-2024
+
+- Package updates
+- Fixed twitch deprecating follower checking
+
 ## [2.4.2] - 11-10-2022
 
 - Updated keywords

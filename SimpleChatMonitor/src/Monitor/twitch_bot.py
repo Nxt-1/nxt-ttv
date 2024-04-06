@@ -23,7 +23,7 @@ class TwitchBot(commands.Bot):
         super().__init__(token=token, prefix=prefix, client_secret=client_secret, initial_channels=initial_channels,
                          heartbeat=heartbeat, kwargs=kwargs)
         self.mp_manager = multiprocessing.Manager()
-        self.spam_bot_filter = MessageChecker(cyrillics_score=10)
+        self.spam_bot_filter = MessageChecker(token=token, cyrillics_score=10)
         self.ban_events: Dict[
             str, BanEvent] = {}  # Dict containing all the currently active BanEvents (the author's name is used as key)
         self.gamble_bot = GambleParser('nxthammerboi', self.loop)
