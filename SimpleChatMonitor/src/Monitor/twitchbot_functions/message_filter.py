@@ -72,6 +72,7 @@ class MessageChecker:
         # Multipliers
         self.follow_time_days_cutoff = 0  # Cutoff value in days for the following score multiplier
         self.follow_time_multiplier = 1  # Message score gets multiplied by this if the author was following for the cutoff value or less
+        self.first_time_chatter_multiplier = 1  # Message score gets multiplied by this if the message was a first time chat
 
         # Friendly bot names
         self.bot_names = []  # List with names of friendly bots
@@ -116,8 +117,10 @@ class MessageChecker:
             # Read multipliers
             self.follow_time_days_cutoff = config_json['multipliers']['follow_time_days_cutoff']
             self.follow_time_multiplier = config_json['multipliers']['follow_time_multiplier']
+            self.first_time_chatter_multiplier = config_json['multipliers']['first_time_chatter_multiplier']
             module_logger.info('Loaded follow-time multiplier ' + str(self.follow_time_multiplier) + ' (' +
                                str(self.follow_time_days_cutoff) + ' days cutoff)')
+            module_logger.info('Loaded first time chatter multiplier ' + str(self.first_time_chatter_multiplier))
 
             # Friendly bot names
             self.bot_names = config_json['bot_names']
@@ -180,10 +183,17 @@ class MessageChecker:
         if follow_event_list:
             # If the author is following but for a short time, multiply the score
             if (datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at).days <= self.follow_time_days_cutoff:
+                module_logger.debug('Short follow time, multiplying')
                 result.message_score *= self.follow_time_multiplier
         else:
-            # If the author is not following at all, multiply the score to
+            # If the author is not following at all, multiply the score too
+            module_logger.debug('Chatter not following, multiplying')
             result.message_score *= self.follow_time_multiplier
+
+        if message.first:
+            # If first time chatter, multiply the score
+            module_logger.debug('First time chatter, multiplying')
+            result.message_score *= self.first_time_chatter_multiplier
         # </editor-fold>
 
         if result.message_score >= self.min_score:

@@ -26,13 +26,15 @@
       "yourfollowz",
       "getviewers pro",
       "steamskill",
-      "vk.cc"
+      "vk.cc",
+      "StreamBoo"
     ]
   },
   "minScore": 5,
   "multipliers": {
     "follow_time_days_cutoff": 1,
-    "follow_time_multiplier": 2
+    "follow_time_multiplier": 2,
+    "first_time_chatter_multiplier": 2
   },
   "bot_names": [
     "StreamElements",

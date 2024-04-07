@@ -1,3 +1,6 @@
+## [2.4.4] - 07-04-2024
+
+- Added first time chatter multiplier
 
 ## [2.4.3] - 06-04-2024
 
