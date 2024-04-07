@@ -17,13 +17,14 @@ module_logger = logging.getLogger(__name__)
 
 
 class TwitchBot(commands.Bot):
-    def __init__(self, token: str, prefix: Union[str, list, tuple, set, Callable, Coroutine], client_secret: str = None,
-                 initial_channels: Union[list, tuple, Callable] = None, heartbeat: Optional[float] = 30.0, **kwargs):
+    def __init__(self, own_token: str, prefix: Union[str, list, tuple, set, Callable, Coroutine],
+                 client_secret: str = None, joined_channels: Dict[str, str] = None, heartbeat: Optional[float] = 30.0,
+                 **kwargs):
 
-        super().__init__(token=token, prefix=prefix, client_secret=client_secret, initial_channels=initial_channels,
-                         heartbeat=heartbeat, kwargs=kwargs)
+        super().__init__(token=own_token, prefix=prefix, client_secret=client_secret,
+                         initial_channels=list(joined_channels.keys()), heartbeat=heartbeat, kwargs=kwargs)
         self.mp_manager = multiprocessing.Manager()
-        self.spam_bot_filter = MessageChecker(token=token, cyrillics_score=10)
+        self.spam_bot_filter = MessageChecker(joined_channels=joined_channels, cyrillics_score=10)
         self.ban_events: Dict[
             str, BanEvent] = {}  # Dict containing all the currently active BanEvents (the author's name is used as key)
         self.gamble_bot = GambleParser('nxthammerboi', self.loop)

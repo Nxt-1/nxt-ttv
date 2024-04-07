@@ -1,6 +1,7 @@
 ## [2.4.4] - 07-04-2024
 
 - Added first time chatter multiplier
+- Separated bot OAuth token and joined channel tokens
 
 ## [2.4.3] - 06-04-2024
 

@@ -36,6 +36,19 @@ def check_folder(folder: str, use_logging: bool) -> None:
         raise PermissionError
 
 
+class ParseKVAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, dict())
+        for each in values:
+            try:
+                key, value = each.split("=")
+                getattr(namespace, self.dest)[key] = value
+            except ValueError as ex:
+                message = "\nTraceback: {}".format(ex)
+                message += "\nError on '{}' || It should be 'key=value'".format(each)
+                raise argparse.ArgumentError(self, str(message))
+
+
 def setup_arg_parser() -> argparse.ArgumentParser():
     """
     Helper function to create and add all arguments to a commandline argument parser
@@ -46,7 +59,9 @@ def setup_arg_parser() -> argparse.ArgumentParser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-t', '--token', type=str, required=True, help='Bot channel OAth token')
-    parser.add_argument('-c', '--channels', type=str, nargs='+', required=True, help='Channels to join (space separated)')
+    parser.add_argument('-c', '--channels', type=str, required=True, nargs='+', action=ParseKVAction,
+                        metavar="KEY1=VALUE1",
+                        help='Channels and tokens to join. Format: channel1_name=token1 channel2_name=token2')
     return parser
 
 

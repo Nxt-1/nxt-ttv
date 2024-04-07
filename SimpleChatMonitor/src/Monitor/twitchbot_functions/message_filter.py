@@ -5,7 +5,7 @@ import os
 import re
 from datetime import timezone, datetime
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, Dict
 
 from typing_extensions import Coroutine
 
@@ -56,14 +56,15 @@ class CheckResult:
 class MessageChecker:
     CYRILLIC_RE = re.compile(r'[А-Яа-яЁё]+', re.IGNORECASE)  # Regex to match any cyrillic character
 
-    def __init__(self, token: str, cyrillics_score: float = None):
+    def __init__(self, joined_channels: Dict[str, str], cyrillics_score: float = None):
         """
+        :param joined_channels: Dict of channel/token the bot had joined, used for follow checking
         :param cyrillics_score: Score to add in case any cyrillic character is found in the message, None to
         disable (default)
         """
 
         self.name = 'default'  # Descriptor for the specific filter
-        self.token = token  # User access token that includes the moderation:read:followers scope for the channel
+        self.joined_channels = joined_channels
         # Filter
         self.flagged_re: dict[str, re.Pattern] = {}
         self.cyrillics_score = cyrillics_score
@@ -175,24 +176,31 @@ class MessageChecker:
         # <editor-fold desc="Multipliers">
         # Get the user chatter user object
         message_user = await message.author.user()
-        # Get the channel user object
+        # Get the user object of the channel the message was sent in
         message_channel = await message.channel.user()
-        # Check if the chatter user is following the channel user
-        follow_event_list = (await message_channel.fetch_channel_followers(token=self.token, user_id=message_user.id))
 
-        if follow_event_list:
-            # If the author is following but for a short time, multiply the score
-            if (datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at).days <= self.follow_time_days_cutoff:
-                module_logger.debug('Short follow time, multiplying')
+        # Check if the OAth code of the channel is stored
+        token = self.joined_channels.get(message_channel.name)
+
+        if token:
+            # Check if the chatter user is following the channel user
+            follow_event_list = (await message_channel.fetch_channel_followers(token=token, user_id=message_user.id))
+            if follow_event_list:
+                # If the author is following but for a short time, multiply the score
+                if (datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at).days <= \
+                        self.follow_time_days_cutoff:
+                    module_logger.debug('Short follow time -> multiplying')
+                    result.message_score *= self.follow_time_multiplier
+            else:
+                # If the author is not following at all, multiply the score too
+                module_logger.debug('Chatter not following -> multiplying')
                 result.message_score *= self.follow_time_multiplier
         else:
-            # If the author is not following at all, multiply the score too
-            module_logger.debug('Chatter not following, multiplying')
-            result.message_score *= self.follow_time_multiplier
+            module_logger.critical('Token not found')
 
         if message.first:
             # If first time chatter, multiply the score
-            module_logger.debug('First time chatter, multiplying')
+            module_logger.debug('First time chatter -> multiplying')
             result.message_score *= self.first_time_chatter_multiplier
         # </editor-fold>
 
