@@ -58,7 +58,7 @@ def setup_arg_parser() -> argparse.ArgumentParser():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-t', '--token', type=str, required=True, help='Bot channel OAth token')
+    parser.add_argument('-t', '--token', type=str, required=True, help='Bot channel\'s own OAth token')
     parser.add_argument('-c', '--channels', type=str, required=True, nargs='+', action=ParseKVAction,
                         metavar="KEY1=VALUE1",
                         help='Channels and tokens to join. Format: channel1_name=token1 channel2_name=token2')

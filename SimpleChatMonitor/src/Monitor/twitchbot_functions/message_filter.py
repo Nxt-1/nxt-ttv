@@ -72,7 +72,7 @@ class MessageChecker:
         # Multipliers
         self.follow_time_days_cutoff = 0  # Cutoff value in days for the following score multiplier
         self.follow_time_multiplier = 1  # Message score gets multiplied by this if the author was following for the cutoff value or less
-        self.first_time_chatter_multiplier = 1  # Message score gets multiplied by this if the message was a first time chat
+        self.first_time_chatter_multiplier = 2  # Message score gets multiplied by this if the message was a first time chat
 
         # Friendly bot names
         self.bot_names = []  # List with names of friendly bots
