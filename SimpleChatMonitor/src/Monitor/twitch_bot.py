@@ -75,6 +75,7 @@ class TwitchBot(commands.Bot):
         try:
             await self.ban_events[name].cancel()
             self.remove_ban_event(name)
+            await self.unban_chatter(channel=ctx.channel, chatter_name=name)
         except KeyError:
             module_logger.warning('No open ban event for user ' + str(name) + ' found')
             await ctx.send('No open ban event for user ' + str(name) + ' found')
@@ -149,6 +150,28 @@ class TwitchBot(commands.Bot):
             self.ban_events.pop(message.author.display_name)
         except KeyError:
             module_logger.debug('Ignoring duplicate delete for user ' + str(message.author.display_name))
+
+    async def unban_chatter(self, message: twitchio.Message = None, channel: twitchio.channel = None,
+                            chatter_name: str = None) -> None:
+        """
+        Removes a ban or timeout on a chatter based on a message object or a channel/chatter_name combo.
+        """
+
+        if message:
+            chatter = await message.author.user()
+            channel_user = await message.channel.user()
+        elif channel and chatter_name:
+            channel_user = await channel.user()
+            chatter = channel.get_chatter(chatter_name)
+            if not chatter:
+                module_logger.error('Failed to fetch chatter \'' + str(chatter_name) + '\' to unban')
+                return
+        else:
+            raise ValueError('Invalid set of arguments passed. Use either the message or channel+chatter_name')
+
+        module_logger.warning('Unbanning ' + chatter.display_name)
+        # Get the user object of the channel the message was sent in
+        await channel_user.unban_user(self.own_token, self.user_id, chatter.id)
 
     async def timeout_chatter(self, message: twitchio.Message) -> None:
         """

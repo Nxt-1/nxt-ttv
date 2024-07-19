@@ -1,6 +1,7 @@
-## [2.4.5] - 19-04-2024
+## [2.4.5] - 20-07-2024
 
-- Fixed bans, timeouts and message deletions 
+- Fixed bans, timeouts and message deletions
+- Fixed unbanning
 
 
 ## [2.4.4] - 07-04-2024

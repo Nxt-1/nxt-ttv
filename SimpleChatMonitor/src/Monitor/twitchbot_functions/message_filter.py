@@ -254,10 +254,7 @@ class BanEvent:
 
     async def cancel(self) -> None:
         """
-        Cancels the ban timer if it is currently running and not elapsed yet. After a cancel, the user is also
-        untimed-out and unbanned.
-
-        :return: True if the timer was successfully canceled, False otherwise
+        Cancels the ban timer if it is currently running and not elapsed yet.
         """
 
         if not self.ban_timer:
@@ -272,6 +269,3 @@ class BanEvent:
             self.ban_method.close()
             # Cancel the timer as well
             self.ban_timer.cancel()
-            # TODO: This likely doesn't work with the new API
-            await self.check_result.message.channel.send('/untimeout ' +
-                                                         str(self.check_result.message.author.display_name))
