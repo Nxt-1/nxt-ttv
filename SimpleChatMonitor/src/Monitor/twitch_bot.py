@@ -23,6 +23,8 @@ class TwitchBot(commands.Bot):
 
         super().__init__(token=own_token, prefix=prefix, client_secret=client_secret,
                          initial_channels=list(joined_channels.keys()), heartbeat=heartbeat, kwargs=kwargs)
+        self.own_token = own_token
+        self.joined_channels = joined_channels  # Dict of channel/token the bot had joined
         self.mp_manager = multiprocessing.Manager()
         self.spam_bot_filter = MessageChecker(joined_channels=joined_channels, cyrillics_score=10)
         self.ban_events: Dict[
@@ -132,17 +134,34 @@ class TwitchBot(commands.Bot):
         else:
             module_logger.info('Removed ban event for user ' + str(name))
 
-    async def do_ban(self, message: twitchio.Message) -> None:
+    async def ban_chatter(self, message: twitchio.Message) -> None:
         """
         Executes the user ban and clear the ban event from the system
         """
 
         module_logger.warning('Executing ban on ' + message.author.display_name)
-        await message.channel.send('/ban ' + message.author.display_name)
+        author_partial_chatter = await message.author.user()
+        # Get the user object of the channel the message was sent in
+        message_channel = await message.channel.user()
+        await message_channel.ban_user(self.own_token, self.user_id, author_partial_chatter.id,
+                                       "Spam bot filtered, contact a mod if this was a mistake.")
         try:
             self.ban_events.pop(message.author.display_name)
         except KeyError:
             module_logger.debug('Ignoring duplicate delete for user ' + str(message.author.display_name))
+
+    async def timeout_chatter(self, message: twitchio.Message) -> None:
+        """
+        Time's the user out.
+        :param message: the message that will be used to extract the offending chatter from
+        """
+
+        author_partial_chatter = await message.author.user()
+        # Get the user object of the channel the message was sent in
+        message_channel = await message.channel.user()
+        await message_channel.timeout_user(self.own_token, self.user_id, author_partial_chatter.id,
+                                           constants.MINUTES_BEFORE_BAN * 60,
+                                           "Spam bot filtered, contact a mod if this was a mistake")
 
     async def handle_check_result(self, check_result: CheckResult):
         # Handle matches
@@ -150,7 +169,8 @@ class TwitchBot(commands.Bot):
             module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
                                str(check_result.message_score) + ' got flagged: ' + check_result.message.content)
             # Create a new ban event and start the timer
-            ban_event = BanEvent(check_result, self.do_ban(check_result.message))
+            ban_event = BanEvent(check_result, self.ban_chatter(check_result.message))
+            await self.timeout_chatter(check_result.message)
             await ban_event.start()
             self.add_ban_event(ban_event)
 

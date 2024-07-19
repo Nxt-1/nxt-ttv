@@ -1,3 +1,8 @@
+## [2.4.5] - 19-04-2024
+
+- Fixed bans, timeouts and message deletions 
+
+
 ## [2.4.4] - 07-04-2024
 
 - Added first time chatter multiplier
