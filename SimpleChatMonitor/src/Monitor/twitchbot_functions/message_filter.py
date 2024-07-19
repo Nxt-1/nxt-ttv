@@ -7,6 +7,7 @@ from datetime import timezone, datetime
 from enum import Enum
 from typing import Optional, Dict
 
+import twitchio
 from typing_extensions import Coroutine
 
 from Monitor.Utils import constants
@@ -16,8 +17,6 @@ module_logger = logging.getLogger(__name__)
 
 # TODO: Allow full cyrillic sentence
 IGNORED_SET = re.compile(r'[\W_]+')  # Regex to match any alphanumeric character
-
-import twitchio
 
 
 class CheckResultType(Enum):
@@ -189,18 +188,13 @@ class MessageChecker:
                 # If the author is following but for a short time, multiply the score
                 if (datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at).days <= \
                         self.follow_time_days_cutoff:
-                    module_logger.debug('Short follow time -> multiplying')
                     result.message_score *= self.follow_time_multiplier
             else:
                 # If the author is not following at all, multiply the score too
-                module_logger.debug('Chatter not following -> multiplying')
                 result.message_score *= self.follow_time_multiplier
-        else:
-            module_logger.critical('Token not found')
 
         if message.first:
             # If first time chatter, multiply the score
-            module_logger.debug('First time chatter -> multiplying')
             result.message_score *= self.first_time_chatter_multiplier
         # </editor-fold>
 
@@ -232,7 +226,7 @@ class MessageChecker:
                 result.ignore_reason = IgnoreReason.SUBSCRIBER
 
         # Ignore followers if needed
-        elif self.ignore_follower and follow_event_list[0]:
+        elif self.ignore_follower and follow_event_list and follow_event_list[0]:
             if result.result_type == CheckResultType.MATCH:
                 result.result_type = CheckResultType.IGNORED
                 result.ignore_reason = IgnoreReason.FOLLOWER
@@ -258,9 +252,6 @@ class BanEvent:
         self.ban_timer = asyncio.get_running_loop().call_later(constants.MINUTES_BEFORE_BAN * 60, asyncio.create_task,
                                                                self.ban_method)
 
-        await self.check_result.message.channel.send('/timeout ' + str(self.check_result.message.author.display_name) +
-                                                     ' ' + str(constants.MINUTES_BEFORE_BAN) + 'm')
-
     async def cancel(self) -> None:
         """
         Cancels the ban timer if it is currently running and not elapsed yet. After a cancel, the user is also
@@ -281,5 +272,6 @@ class BanEvent:
             self.ban_method.close()
             # Cancel the timer as well
             self.ban_timer.cancel()
+            # TODO: This likely doesn't work with the new API
             await self.check_result.message.channel.send('/untimeout ' +
                                                          str(self.check_result.message.author.display_name))
