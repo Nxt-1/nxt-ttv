@@ -145,7 +145,7 @@ class TwitchBot(commands.Bot):
         # Get the user object of the channel the message was sent in
         message_channel = await message.channel.user()
         await message_channel.ban_user(self.own_token, self.user_id, author_partial_chatter.id,
-                                       "Spam bot filtered, contact a mod if this was a mistake.")
+                                       "Spam bot filtered, contact a mod if this was a mistake")
         try:
             self.ban_events.pop(message.author.display_name)
         except KeyError:
