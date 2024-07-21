@@ -247,8 +247,8 @@ class BanEvent:
         the message author will be banned.
         """
 
-        module_logger.info('Started ' + str(constants.MINUTES_BEFORE_BAN) + 'm ban event timer for user ' +
-                           str(self.check_result.message.author.display_name))
+        module_logger.debug('Started ' + str(constants.MINUTES_BEFORE_BAN) + 'm ban event timer for user ' +
+                            str(self.check_result.message.author.display_name))
         self.ban_timer = asyncio.get_running_loop().call_later(constants.MINUTES_BEFORE_BAN * 60, asyncio.create_task,
                                                                self.ban_method)
 

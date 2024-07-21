@@ -117,8 +117,8 @@ class TwitchBot(commands.Bot):
             module_logger.warning('User ' + str(ban_event.check_result.message.author.display_name) +
                                   ' is already in the ban events')
         else:
-            module_logger.info('Adding new ban event for user ' +
-                               str(ban_event.check_result.message.author.display_name))
+            module_logger.debug('Adding new ban event for user ' +
+                                str(ban_event.check_result.message.author.display_name))
             self.ban_events[ban_event.check_result.message.author.display_name] = ban_event
 
     def remove_ban_event(self, name: str) -> None:
@@ -140,7 +140,7 @@ class TwitchBot(commands.Bot):
         Executes the user ban and clear the ban event from the system
         """
 
-        module_logger.warning('Executing ban on ' + message.author.display_name)
+        module_logger.info('Executing ban on ' + message.author.display_name)
         author_partial_chatter = await message.author.user()
         # Get the user object of the channel the message was sent in
         message_channel = await message.channel.user()
@@ -197,9 +197,10 @@ class TwitchBot(commands.Bot):
             await ban_event.start()
             self.add_ban_event(ban_event)
 
-            await check_result.message.channel.send(check_result.message.author.display_name + ' Got flagged by ' +
-                                                    check_result.checker_name + ' (Use ?fp ' +
-                                                    check_result.message.author.display_name + ' to report a false positive)')
+            # TODO: Can this be left out for ever?
+            # await check_result.message.channel.send(check_result.message.author.display_name + ' Got flagged by ' +
+            #                                         check_result.checker_name + ' (Use ?fp ' +
+            #                                         check_result.message.author.display_name + ' to report a false positive)')
 
         elif check_result.result_type == CheckResultType.IGNORED:
             # Don't log friendly bot results
