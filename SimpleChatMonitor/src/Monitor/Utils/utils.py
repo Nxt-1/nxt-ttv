@@ -3,6 +3,7 @@ import logging
 import multiprocessing
 import sys
 from pathlib import Path
+from typing import Dict, List
 
 module_logger = logging.getLogger(__name__)
 
@@ -36,19 +37,6 @@ def check_folder(folder: str, use_logging: bool) -> None:
         raise PermissionError
 
 
-class ParseKVAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, dict())
-        for each in values:
-            try:
-                key, value = each.split("=")
-                getattr(namespace, self.dest)[key] = value
-            except ValueError as ex:
-                message = "\nTraceback: {}".format(ex)
-                message += "\nError on '{}' || It should be 'key=value'".format(each)
-                raise argparse.ArgumentError(self, str(message))
-
-
 def setup_arg_parser() -> argparse.ArgumentParser():
     """
     Helper function to create and add all arguments to a commandline argument parser
@@ -59,9 +47,8 @@ def setup_arg_parser() -> argparse.ArgumentParser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-t', '--token', type=str, required=True, help='Bot channel\'s own OAth token')
-    parser.add_argument('-c', '--channels', type=str, required=True, nargs='+', action=ParseKVAction,
-                        metavar="KEY1=VALUE1",
-                        help='Channels and tokens to join. Format: channel1_name=token1 channel2_name=token2')
+    parser.add_argument('-i', '--own_id', type=int, required=True, help='Twitch ID of the bot')
+
     return parser
 
 
@@ -107,3 +94,21 @@ class GlobalTerminator(multiprocessing.Process):
         # TODO: This method can no long be used?
         module_logger.warning('Sending system terminate with code ' + str(exit_code) + '\n')
         self.process_pipe.send(exit_code)
+
+
+class JoinChannel:
+    def __init__(self, name: str, twitch_id: int, token: str = None):
+        self.name = name
+        self.twitch_id = twitch_id
+        self.token = token
+
+
+class JoinChannels:
+    def __init__(self):
+        self.channels: Dict[str, JoinChannel] = {}
+
+    def append_channel(self, channel: JoinChannel):
+        self.channels[channel.name] = channel
+
+    def get_channel_name_list(self) -> List[str]:
+        return list(self.channels.keys())

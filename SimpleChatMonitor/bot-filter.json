@@ -5,12 +5,12 @@
       "buy",
       "famous",
       "promoting",
-      "promo code",
+      "promocode",
       "YouTube",
       "Trovo",
       "TikTok",
       "Insta",
-      "Tired of ad"
+      "Tiredofad"
     ],
     "2": [
       "viewers",
@@ -19,15 +19,19 @@
       "subscribers",
       "subs"
     ],
-    "3": [],
+    "3": [
+      "bestviewers",
+      "cheapviewers"
+    ],
     "4": [
       "mountviewers",
       "mystrm",
       "yourfollowz",
-      "getviewers pro",
+      "getviewerspro",
       "steamskill",
       "vk.cc",
-      "StreamBoo"
+      "StreamBoo",
+      "B͟est"
     ]
   },
   "minScore": 5,

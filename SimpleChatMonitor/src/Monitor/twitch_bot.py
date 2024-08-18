@@ -1,12 +1,15 @@
+import json
 import logging
 import multiprocessing
+import os
 from typing import Union, Callable, Coroutine, Optional, Dict
 
 import twitchio
-from twitchio.ext import commands
+from twitchio.ext import commands, pubsub
 
 from Monitor.Utils import constants
 from Monitor.Utils.custom_errors import CancelError
+from Monitor.Utils.utils import JoinChannels, JoinChannel
 from Monitor.twitchbot_functions.gambling import GambleParser
 from Monitor.twitchbot_functions.message_filter import MessageChecker, BanEvent, CheckResult, CheckResultType, \
     IgnoreReason
@@ -17,16 +20,18 @@ module_logger = logging.getLogger(__name__)
 
 
 class TwitchBot(commands.Bot):
-    def __init__(self, own_token: str, prefix: Union[str, list, tuple, set, Callable, Coroutine],
-                 client_secret: str = None, joined_channels: Dict[str, str] = None, heartbeat: Optional[float] = 30.0,
-                 **kwargs):
-
+    def __init__(self, own_token: str, own_id: int, prefix: Union[str, list, tuple, set, Callable, Coroutine],
+                 client_secret: str = None, heartbeat: Optional[float] = 30.0, **kwargs):
+        self.join_channels = JoinChannels()  # List of channels and their details that the bot is joined to
+        self.read_auth_file(constants.AUTH_PATH)
         super().__init__(token=own_token, prefix=prefix, client_secret=client_secret,
-                         initial_channels=list(joined_channels.keys()), heartbeat=heartbeat, kwargs=kwargs)
+                         initial_channels=self.join_channels.get_channel_name_list(), heartbeat=heartbeat,
+                         kwargs=kwargs)
+        self.pubsub = pubsub.PubSubPool(self)
+        self.own_id = own_id  # We need this before we're logged into the API for the pubsub
         self.own_token = own_token
-        self.joined_channels = joined_channels  # Dict of channel/token the bot had joined
         self.mp_manager = multiprocessing.Manager()
-        self.spam_bot_filter = MessageChecker(joined_channels=joined_channels, cyrillics_score=10)
+        self.spam_bot_filter = MessageChecker(joined_channels=self.join_channels, cyrillics_score=10)
         self.ban_events: Dict[
             str, BanEvent] = {}  # Dict containing all the currently active BanEvents (the author's name is used as key)
         self.gamble_bot = GambleParser('nxthammerboi', self.loop)
@@ -34,6 +39,50 @@ class TwitchBot(commands.Bot):
                                  pass_timeout_s=3 * 60 * 60, double_names={'ninariiofcannith', 'MistressViolet68'},
                                  announce_message='We are voting to make Deathy take 3 minute break. Vote by typing ?votebreak')
         self.notifier = Notifier()
+
+    async def __ainit__(self):
+        topics = []
+        for join_channel in self.join_channels.channels.values():
+            if join_channel.token:
+                module_logger.debug('Joining pub subs in ' + str(join_channel.name))
+                # topics.append(pubsub.channel_points(join_channel.token)[int(join_channel.twitch_id)])
+                # topics.append(pubsub.bits(join_channel.token)[int(join_channel.twitch_id)])
+                topics.append(
+                    pubsub.moderation_user_action(join_channel.token)[int(join_channel.twitch_id)][self.own_id])
+                # topics.append(pubsub.channel_subscriptions(join_channel.token)[int(join_channel.twitch_id)])
+
+        await self.pubsub.subscribe_topics(topics)
+        await self.start()
+
+    def read_auth_file(self, file_path: str) -> None:
+        """
+        Parses the config file containing the auth configuration.
+
+        :param file_path: Path to the auth file
+        """
+
+        try:
+            with open(os.path.abspath(file_path)) as auth_file:
+                auth_json = json.load(auth_file)
+        except FileNotFoundError as e:
+            module_logger.error('Could not find auth file at ' + str(os.path.abspath(file_path)) + ': ' + str(e))
+            return
+        else:
+            # Read the channels to join
+            for channel in auth_json['channels']:
+                debug_msg = 'Joining channel ' + str(channel)
+                twitch_id = None
+                if auth_json['channels'][channel]['id']:
+                    debug_msg += ' with ID'
+                    twitch_id = auth_json['channels'][channel]['id']
+                token = None
+                if auth_json['channels'][channel]['token']:
+                    debug_msg += ' and token'
+                    token = auth_json['channels'][channel]['token']
+                join_channel = JoinChannel(channel, twitch_id, token)
+
+                module_logger.info(debug_msg)
+                self.join_channels.append_channel(join_channel)
 
     async def event_ready(self):
         module_logger.info('Bot is live, logged in as ' + str(self.nick))
@@ -264,3 +313,5 @@ class TwitchBot(commands.Bot):
         except AttributeError:
             module_logger.error('Channel ' + str(channel_name) + ' not found, make sure the bot has joined the '
                                                                  'channel')
+
+# TODO: monitor for untimeout events while waiting to ban someone

@@ -1,16 +1,15 @@
 import asyncio
 import logging
 import sys
-from typing import Dict
 
-from asynccmd import Cmd
 from Monitor.twitch_bot import TwitchBot
+from asynccmd import Cmd
 
 module_logger = logging.getLogger(__name__)
 
 
 class NxtBot(Cmd):
-    def __init__(self, token, prefix, joined_channels: Dict[str, str], loop: asyncio.AbstractEventLoop = None):
+    def __init__(self, token, own_id: int, prefix, loop: asyncio.AbstractEventLoop = None):
         if sys.platform == 'win32':
             mode = "Run"
         else:
@@ -21,15 +20,15 @@ class NxtBot(Cmd):
 
         # The asyncio event loop that both the Cmd class and TwitchBot class will use
         self.loop = asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
-
-        self.twitch_bot = TwitchBot(loop=loop, own_token=token, prefix=prefix, joined_channels=joined_channels)
+        self.twitch_bot = TwitchBot(loop=loop, own_token=token, own_id=own_id, prefix=prefix)
 
     def run(self):
         # Pass the asyncio loop the Cmd class and start the instance
         super().cmdloop(self.loop)
         sys.stdout.flush()
         # Pass the asyncio loop to the TwitchBot class, and it will start the event loop
-        self.twitch_bot.run()
+        self.twitch_bot.loop.run_until_complete(self.twitch_bot.__ainit__())
+        # self.twitch_bot.run()
 
     def do_say(self, arg):
         try:

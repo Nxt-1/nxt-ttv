@@ -2,6 +2,8 @@ import logging
 import multiprocessing
 import sys
 
+from twitchio.ext import pubsub
+
 from Monitor.Utils import monitor_logging, utils, constants
 from Monitor.bot import NxtBot
 
@@ -44,7 +46,12 @@ def main():
     # </editor-fold>
 
     module_logger.info('Nxt Twitch chat monitor is ready')
-    bot = NxtBot(token=args.token, prefix='?', joined_channels=args.channels)
+    bot = NxtBot(token=args.token, own_id=args.own_id, prefix='?')
+
+    @bot.twitch_bot.event()
+    async def event_pubsub_moderation(event: pubsub.PubSubModerationAction):
+        module_logger.info('Moderation action: ' + str(event.action) + ' on ' + str(event.target.name))
+
     bot.run()
 
     module_logger.info('Bot exited')

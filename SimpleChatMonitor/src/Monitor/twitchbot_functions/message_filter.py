@@ -3,15 +3,17 @@ import json
 import logging
 import os
 import re
+from collections import namedtuple
 from datetime import timezone, datetime
 from enum import Enum
-from typing import Optional, Dict
+from typing import Optional
 
 import twitchio
 from typing_extensions import Coroutine
 
 from Monitor.Utils import constants
 from Monitor.Utils.custom_errors import CancelError
+from Monitor.Utils.utils import JoinChannels
 
 module_logger = logging.getLogger(__name__)
 
@@ -59,9 +61,9 @@ class CheckResult:
 class MessageChecker:
     CYRILLIC_RE = re.compile(r'[А-Яа-яЁё]+', re.IGNORECASE)  # Regex to match any cyrillic character
 
-    def __init__(self, joined_channels: Dict[str, str], cyrillics_score: float = None):
+    def __init__(self, joined_channels: JoinChannels, cyrillics_score: float = None):
         """
-        :param joined_channels: Dict of channel/token the bot had joined, used for follow checking
+        :param joined_channels: The list of channels and their info that the bot had joined, used for follow checking
         :param cyrillics_score: Score to add in case any cyrillic character is found in the message, None to
         disable (default)
         """
@@ -183,7 +185,7 @@ class MessageChecker:
         message_channel = await message.channel.user()
 
         # Check if the OAth code of the channel is stored
-        token = self.joined_channels.get(message_channel.name)
+        token = self.joined_channels.channels.get(message_channel.name).token
 
         if token:
             # Check if the chatter user is following the channel user
