@@ -189,13 +189,17 @@ class TwitchBot(commands.Bot):
     async def handle_check_result(self, check_result: CheckResult):
         # Handle matches
         if check_result.result_type == CheckResultType.MATCH:
-            module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
-                               str(check_result.message_score) + ' got flagged: ' + check_result.message.content)
+            module_logger.info('Flagged message from ' + check_result.message.author.display_name + ' in ' +
+                               str(check_result.message.channel.name) + ' with:\n' +
+                               '    Score: ' + str(check_result.message_score) + '\n' +
+                               '    Message: ' + str(check_result.message.content) + '\n' +
+                               '    Follow time mult.: ' + str(check_result.multipliers.follow_time) + '\n' +
+                               '    First time chatter mult.: ' + str(check_result.multipliers.first_time_chatter))
             # Create a new ban event and start the timer
             ban_event = BanEvent(check_result, self.ban_chatter(check_result.message))
+            self.add_ban_event(ban_event)
             await self.timeout_chatter(check_result.message)
             await ban_event.start()
-            self.add_ban_event(ban_event)
 
             # TODO: Can this be left out for ever?
             # await check_result.message.channel.send(check_result.message.author.display_name + ' Got flagged by ' +
@@ -207,18 +211,25 @@ class TwitchBot(commands.Bot):
             if check_result.ignore_reason == IgnoreReason.FRIENDLY_BOT:
                 pass
             else:
-                module_logger.info('Message from ' + check_result.message.author.display_name + ' with score ' +
-                                   str(check_result.message_score) + ' got a pass (' +
-                                   str(check_result.ignore_reason.name) + '): ' + check_result.message.content)
+                module_logger.info('Passing message from ' + check_result.message.author.display_name + ' in ' +
+                                   str(check_result.message.channel.name) + ' with:\n' +
+                                   '    Pass reason: ' + str(check_result.ignore_reason.name) + '\n' +
+                                   '    Score: ' + str(check_result.message_score) + '\n' +
+                                   '    Message: ' + str(check_result.message.content) + '\n' +
+                                   '    Follow time mult.: ' + str(check_result.multipliers.follow_time) + '\n' +
+                                   '    First time chatter mult.: ' + str(check_result.multipliers.first_time_chatter))
                 await check_result.message.channel.send('@' + check_result.message.author.display_name +
                                                         ' You get a pass because: ' +
                                                         str(check_result.ignore_reason.name))
 
         # Log near misses
         elif check_result.result_type == CheckResultType.NO_MATCH and check_result.message_score >= 2:
-            module_logger.debug('Message from ' + check_result.message.author.display_name + ' with score ' +
-                                str(check_result.message_score) + ' did not get flagged: ' +
-                                check_result.message.content)
+            module_logger.debug('Near miss from ' + check_result.message.author.display_name + ' in ' +
+                                str(check_result.message.channel.name) + ' with:\n' +
+                                '    Score: ' + str(check_result.message_score) + '\n' +
+                                '    Message: ' + str(check_result.message.content) + '\n' +
+                                '    Follow time mult.: ' + str(check_result.multipliers.follow_time) + '\n' +
+                                '    First time chatter mult.: ' + str(check_result.multipliers.first_time_chatter))
 
     async def event_message(self, message):
         # Ignore the bots own messages

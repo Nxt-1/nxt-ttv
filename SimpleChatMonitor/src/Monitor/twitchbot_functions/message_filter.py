@@ -50,6 +50,10 @@ class CheckResult:
         self.result_type = result_type  # Type of result
         self.ignore_reason = ignore_reason  # Reason why a match was ignored
         self.message_score = message_score  # Score of the message
+        self.multipliers = namedtuple('multipliers', ['follow_time',
+                                                      'first_time_chatter'])  # Indicator of which multipliers got applied (1 = applied, 0 not applied, None = error while checking)
+        self.multipliers.follow_time = 0
+        self.multipliers.first_time_chatter = 0
 
 
 class MessageChecker:
@@ -189,13 +193,23 @@ class MessageChecker:
                 if (datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at).days <= \
                         self.follow_time_days_cutoff:
                     result.message_score *= self.follow_time_multiplier
+                    result.multipliers.follow_time = 1
+                else:
+                    result.multipliers.follow_time = 0
             else:
                 # If the author is not following at all, multiply the score too
                 result.message_score *= self.follow_time_multiplier
+                result.multipliers.follow_time = 1
+        else:
+            result.multipliers.follow_time = -1
 
         if message.first:
             # If first time chatter, multiply the score
             result.message_score *= self.first_time_chatter_multiplier
+            result.multipliers.first_time_chatter = 1
+        else:
+            result.multipliers.first_time_chatter = 0
+
         # </editor-fold>
 
         if result.message_score >= self.min_score:
