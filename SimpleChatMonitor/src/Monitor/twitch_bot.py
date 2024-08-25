@@ -5,7 +5,7 @@ import os
 from typing import Union, Callable, Coroutine, Optional, Dict
 
 import twitchio
-from twitchio.ext import commands, pubsub
+from twitchio.ext import commands, eventsub
 
 from Monitor.Utils import constants
 from Monitor.Utils.custom_errors import CancelError
@@ -24,10 +24,17 @@ class TwitchBot(commands.Bot):
                  client_secret: str = None, heartbeat: Optional[float] = 30.0, **kwargs):
         self.join_channels = JoinChannels()  # List of channels and their details that the bot is joined to
         self.read_auth_file(constants.AUTH_PATH)
-        super().__init__(token=own_token, prefix=prefix, client_secret=client_secret,
+        # super().__init__(token=own_token, prefix=prefix, client_secret=client_secret,
+        #                  initial_channels=self.join_channels.get_channel_name_list(), heartbeat=heartbeat,
+        #                  kwargs=kwargs)
+        super().__init__(token=own_token, prefix=prefix, client_secret="s8l9xz25b6lgz3j6stcm6vz82ne3ye",
+                         client_id="k3ez0xaqde5ycwkoof9aciqttyu7jp",
                          initial_channels=self.join_channels.get_channel_name_list(), heartbeat=heartbeat,
                          kwargs=kwargs)
-        self.pubsub = pubsub.PubSubPool(self)
+        self.esbot = commands.Bot.from_client_credentials(client_secret="s8l9xz25b6lgz3j6stcm6vz82ne3ye",
+                                                          client_id="k3ez0xaqde5ycwkoof9aciqttyu7jp")
+        self.esclient = eventsub.EventSubClient(self.esbot, webhook_secret='veryverysecretstring',
+                                                callback_route='https://nxt-3d.be/twitchhook')
         self.own_id = own_id  # We need this before we're logged into the API for the pubsub
         self.own_token = own_token
         self.mp_manager = multiprocessing.Manager()
@@ -41,17 +48,25 @@ class TwitchBot(commands.Bot):
         self.notifier = Notifier()
 
     async def __ainit__(self):
-        topics = []
-        for join_channel in self.join_channels.channels.values():
-            if join_channel.token:
-                module_logger.debug('Joining pub subs in ' + str(join_channel.name))
-                # topics.append(pubsub.channel_points(join_channel.token)[int(join_channel.twitch_id)])
-                # topics.append(pubsub.bits(join_channel.token)[int(join_channel.twitch_id)])
-                topics.append(
-                    pubsub.moderation_user_action(join_channel.token)[int(join_channel.twitch_id)][self.own_id])
-                # topics.append(pubsub.channel_subscriptions(join_channel.token)[int(join_channel.twitch_id)])
+        self.loop.create_task(self.esclient.listen(port=4000))
+        # self.loop.create_task(self.eventsub_client.listen(port=4000))
 
-        await self.pubsub.subscribe_topics(topics)
+        try:
+            await self.esclient.subscribe_channel_unbans(broadcaster=38884531)
+        except twitchio.HTTPException as e:
+            module_logger.error('HTTP exception for webhook1: ' + str(e))
+
+        try:
+            await self.esclient.subscribe_channel_bans(broadcaster=38884531)
+        except twitchio.HTTPException as e:
+            module_logger.error('HTTP exception for webhook2: ' + str(e))
+
+        try:
+            # await esclient.subscribe_channel_bans(broadcaster=38884531)
+            await self.esclient.subscribe_channel_shield_mode_end(broadcaster=38884531, moderator=38884531)
+        except twitchio.HTTPException as e:
+            module_logger.error('HTTP exception for webhook3: ' + str(e))
+
         await self.start()
 
     def read_auth_file(self, file_path: str) -> None:

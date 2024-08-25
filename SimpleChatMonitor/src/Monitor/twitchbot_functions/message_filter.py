@@ -285,3 +285,6 @@ class BanEvent:
             self.ban_method.close()
             # Cancel the timer as well
             self.ban_timer.cancel()
+
+
+# TODO: Add an optional TTS stop on message

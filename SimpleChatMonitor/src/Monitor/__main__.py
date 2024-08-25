@@ -2,7 +2,7 @@ import logging
 import multiprocessing
 import sys
 
-from twitchio.ext import pubsub
+from twitchio.ext import eventsub
 
 from Monitor.Utils import monitor_logging, utils, constants
 from Monitor.bot import NxtBot
@@ -48,9 +48,17 @@ def main():
     module_logger.info('Nxt Twitch chat monitor is ready')
     bot = NxtBot(token=args.token, own_id=args.own_id, prefix='?')
 
-    @bot.twitch_bot.event()
-    async def event_pubsub_moderation(event: pubsub.PubSubModerationAction):
-        module_logger.info('Moderation action: ' + str(event.action) + ' on ' + str(event.target.name))
+    @bot.twitch_bot.esbot.event()
+    async def event_eventsub_notification_ban(payload: eventsub.ChannelBanData) -> None:
+        module_logger.critical('Received ban event')
+
+    @bot.twitch_bot.esbot.event()
+    async def event_eventsub_notification_unban(payload: eventsub.ChannelUnbanData) -> None:
+        module_logger.critical('Received unban event HYPE')
+
+    @bot.twitch_bot.esbot.event()
+    async def event_eventsub_notification_channel_shield_mode_end(event: eventsub.ChannelShieldModeEndData) -> None:
+        module_logger.critical('Received unshield event')
 
     bot.run()
 
