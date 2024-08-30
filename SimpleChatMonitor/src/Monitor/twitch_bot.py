@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import multiprocessing
@@ -24,6 +25,7 @@ class TwitchBot(commands.Bot):
                  client_secret: str = None, heartbeat: Optional[float] = 30.0, **kwargs):
         self.join_channels = JoinChannels()  # List of channels and their details that the bot is joined to
         self.read_auth_file(constants.AUTH_PATH)
+        # TODO Delete this
         # super().__init__(token=own_token, prefix=prefix, client_secret=client_secret,
         #                  initial_channels=self.join_channels.get_channel_name_list(), heartbeat=heartbeat,
         #                  kwargs=kwargs)
@@ -250,6 +252,11 @@ class TwitchBot(commands.Bot):
                                            constants.MINUTES_BEFORE_BAN * 60,
                                            "Spam bot filtered, contact a mod if this was a mistake")
 
+        # TODO: Implement this properly
+        if message.channel.name == 'belishhhh':
+            await asyncio.sleep(0.5)
+            await message.channel.send("!tts stop")
+
     async def handle_check_result(self, check_result: CheckResult):
         # Handle matches
         if check_result.result_type == CheckResultType.MATCH:
@@ -264,11 +271,6 @@ class TwitchBot(commands.Bot):
             self.add_ban_event(ban_event)
             await self.timeout_chatter(check_result.message)
             await ban_event.start()
-
-            # TODO: Can this be left out for ever?
-            # await check_result.message.channel.send(check_result.message.author.display_name + ' Got flagged by ' +
-            #                                         check_result.checker_name + ' (Use ?fp ' +
-            #                                         check_result.message.author.display_name + ' to report a false positive)')
 
         elif check_result.result_type == CheckResultType.IGNORED:
             # Don't log friendly bot results

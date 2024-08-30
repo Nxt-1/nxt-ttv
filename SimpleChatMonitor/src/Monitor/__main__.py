@@ -4,6 +4,7 @@ import sys
 
 from twitchio.ext import eventsub
 
+from Monitor import database
 from Monitor.Utils import monitor_logging, utils, constants
 from Monitor.bot import NxtBot
 
@@ -46,6 +47,8 @@ def main():
     # </editor-fold>
 
     module_logger.info('Nxt Twitch chat monitor is ready')
+    db_connection = database.get_connection()
+    database.create_filter_table()
     bot = NxtBot(token=args.token, own_id=args.own_id, prefix='?')
 
     @bot.twitch_bot.esbot.event()
