@@ -210,10 +210,15 @@ class TwitchBot(commands.Bot):
         author_partial_chatter = await message.author.user()
         # Get the user object of the channel the message was sent in
         message_channel = await message.channel.user()
-        await message_channel.ban_user(self.own_token, self.user_id, author_partial_chatter.id,
-                                       "Spam bot filtered, contact a mod if this was a mistake")
         try:
+            await message_channel.ban_user(self.own_token, self.user_id, author_partial_chatter.id,
+                                           "Spam bot filtered, contact a mod if this was a mistake")
             self.ban_events.pop(message.author.display_name)
+        except twitchio.errors.HTTPException as e:
+            if e.reason == 'The user specified in the user_id field is already banned.':
+                module_logger.debug('User already banned')
+            else:
+                module_logger.error('Unexpected error: '+str(e))
         except KeyError:
             module_logger.debug('Ignoring duplicate delete for user ' + str(message.author.display_name))
 

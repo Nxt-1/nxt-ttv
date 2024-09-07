@@ -1,6 +1,7 @@
 ## [2.5.0] - 18-08-2024
 
 - Reworked how channels to join and their tokens are handled
+- Banning users who were already banned no longer throws uncaught errors
 
 
 ## [2.4.5] - 20-07-2024
