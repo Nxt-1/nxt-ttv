@@ -2,7 +2,7 @@ import logging
 import multiprocessing
 import sys
 
-from twitchio.ext import eventsub
+from twitchio.ext import eventsub, pubsub
 
 from Monitor import database
 from Monitor.Utils import monitor_logging, utils, constants
@@ -49,7 +49,42 @@ def main():
     module_logger.info('Nxt Twitch chat monitor is ready')
     db_connection = database.get_connection()
     database.create_filter_table()
-    bot = NxtBot(token=args.token, own_id=args.own_id, prefix='?')
+    database.create_raffle_table()
+    bot = NxtBot(token=args.token, own_id=args.own_id, prefix='?', client_secret=args.client_secret,
+                 client_id=args.client_id)
+
+    @bot.twitch_bot.event()
+    async def event_pubsub_subscription(event: pubsub.PubSubChannelSubscribe):
+        # Handle anon subs
+        if event.context in ('anonsubgift', 'anonresubgift'):
+            event.user.name = 'anonymous'
+
+        if event.is_gift:
+            module_logger.info('New gifted sub from ' + str(event.user.name) + ' to ' + str(event.recipient))
+
+            channel_user = await event.channel.user()
+            channel_id = channel_user.id
+            database.increment_subs(int(event.user.id), event.user.name, channel_id)
+            (subs, bits, redeems) = database.get_counts_from_name(event.user.name, channel_id)
+            module_logger.info('Subs: ' + str(subs) + ' bits: ' + str(bits) + ' redeems: ' + str(redeems))
+        else:
+            module_logger.info('Sub from ' + str(event.user.name))
+
+    @bot.twitch_bot.event()
+    async def event_pubsub_bits(event: pubsub.PubSubBitsMessage):
+        module_logger.info(str(event.user.name) + ' gave ' + str(event.bits_used))
+
+        database.increment_bits(event.user.id, event.user.name, int(event.channel_id), event.bits_used)
+        (subs, bits, redeems) = database.get_counts_from_name(event.user.name, int(event.channel_id))
+        module_logger.info('Subs: ' + str(subs) + ' bits: ' + str(bits) + ' redeems: ' + str(redeems))
+
+    @bot.twitch_bot.event()
+    async def event_pubsub_channel_points(event: pubsub.PubSubChannelPointsMessage):
+        module_logger.info(str(event.user.name) + ' redeemed ' + str(event.reward.title))
+
+        database.increment_redeems(event.user.id, event.user.name, int(event.channel_id))
+        (subs, bits, redeems) = database.get_counts_from_name(event.user.name, int(event.channel_id))
+        module_logger.info('Subs: ' + str(subs) + ' bits: ' + str(bits) + ' redeems: ' + str(redeems))
 
     @bot.twitch_bot.esbot.event()
     async def event_eventsub_notification_ban(payload: eventsub.ChannelBanData) -> None:

@@ -3,11 +3,12 @@ import json
 import logging
 import multiprocessing
 import os
-from typing import Union, Callable, Coroutine, Optional, Dict
+from typing import Union, Callable, Coroutine, Optional, Dict, List
 
 import twitchio
-from twitchio.ext import commands, eventsub
+from twitchio.ext import commands, eventsub, pubsub
 
+from Monitor import database
 from Monitor.Utils import constants
 from Monitor.Utils.custom_errors import CancelError
 from Monitor.Utils.utils import JoinChannels, JoinChannel
@@ -41,13 +42,26 @@ class TwitchBot(commands.Bot):
         self.gamble_bot = GambleParser('nxthammerboi', self.loop)
         self.break_voter = Voter(self.mp_manager, votes_required=3, vote_period=60, fail_timeout_s=10 * 60,
                                  pass_timeout_s=3 * 60 * 60, double_names={'ninariiofcannith', 'MistressViolet68'},
-                                 announce_message='We are voting to make Deathy take 3 minute break. Vote by typing ?votebreak')
+                                 announce_message='We are voting to make Deathy take 3 minute break. '
+                                                  'Vote by typing ?votebreak')
         self.notifier = Notifier()
 
     async def __ainit__(self):
+        for channel in self.join_channels.channels.values():
+            if channel.enable_raffle_module:
+                # Pubsub stuff
+                topics = [
+                    pubsub.channel_points(channel.token)[int(channel.twitch_id)],
+                    pubsub.bits(channel.token)[int(channel.twitch_id)],
+                    pubsub.channel_subscriptions(channel.token)[int(channel.twitch_id)]
+                ]
+                await self.pubsub.subscribe_topics(topics)
+
+        # Eventsub stuff
         self.loop.create_task(self.esclient.listen(port=4000))
         # self.loop.create_task(self.eventsub_client.listen(port=4000))
 
+        # TODO: Subscribe to all joined channels
         try:
             await self.esclient.subscribe_channel_unbans(broadcaster=38884531)
         except twitchio.HTTPException as e:
@@ -67,6 +81,7 @@ class TwitchBot(commands.Bot):
         await self.start()
 
     def read_auth_file(self, file_path: str) -> None:
+        # TODO: Refactor to read config
         """
         Parses the config file containing the auth configuration.
 
@@ -84,6 +99,7 @@ class TwitchBot(commands.Bot):
             for channel in auth_json['channels']:
                 debug_msg = 'Joining channel ' + str(channel)
                 twitch_id = None
+                enable_raffle_module = False
                 if auth_json['channels'][channel]['id']:
                     debug_msg += ' with ID'
                     twitch_id = auth_json['channels'][channel]['id']
@@ -91,7 +107,10 @@ class TwitchBot(commands.Bot):
                 if auth_json['channels'][channel]['token']:
                     debug_msg += ' and token'
                     token = auth_json['channels'][channel]['token']
-                join_channel = JoinChannel(channel, twitch_id, token)
+                if auth_json['channels'][channel]['raffle-module']:
+                    debug_msg += ' | raffle module'
+                    enable_raffle_module = auth_json['channels'][channel]['raffle-module']
+                join_channel = JoinChannel(channel, twitch_id, token, enable_raffle_module)
 
                 module_logger.info(debug_msg)
                 self.join_channels.append_channel(join_channel)
@@ -121,6 +140,7 @@ class TwitchBot(commands.Bot):
     @commands.command()
     async def fp(self, ctx: commands.Context):
         # TODO: Check user roles
+        # TODO: Delete this once the untimeout system is in place
 
         # Check that a name was passed
         if ctx.prefix + ctx.command.name == ctx.message.content:
@@ -166,6 +186,137 @@ class TwitchBot(commands.Bot):
 
         if ctx.channel.name == 'deathy_tv':
             await self.break_voter.add_vote(ctx.message)
+
+    @commands.command(aliases=('subs', 'bits', 'redeems', 'check'))
+    async def count(self, ctx: commands.Context):
+        # Check that a name was passed
+        if ctx.prefix + ctx.command.name == ctx.message.content:
+            module_logger.info('No name specified in command (' + ctx.message.content + '), ignoring')
+            await ctx.send('No name specified, try ' + ctx.prefix + ctx.command.name + ' <name>')
+            return
+
+        # Extract the name
+        name = ctx.message.content.replace(ctx.prefix + ctx.command.name + ' ', '')
+        # Remove an @ if it was passed
+        name = name.replace('@', '')
+
+        try:
+            channel_user = await ctx.channel.user()
+            channel_id = channel_user.id
+            (subs, bits, redeems) = database.get_counts_from_name(name, channel_id)
+        except IndexError:
+            await ctx.send("I've looked everywhere, but couldn't find " + name)
+        else:
+            await ctx.send(name + ' currently has ' + str(subs) + ' gifted subs, ' + str(bits) +
+                           ' bits redeemed and ' + str(redeems) + ' channel point redeems')
+
+    @commands.command()
+    async def tickets(self, ctx: commands.Context):
+        # Check that a name was passed
+        if ctx.prefix + ctx.command.name == ctx.message.content:
+            module_logger.info('No name specified in command (' + ctx.message.content + '), ignoring')
+            await ctx.send('No name specified, try ' + ctx.prefix + ctx.command.name + ' <name>')
+            return
+
+        # Extract the name
+        name = ctx.message.content.replace(ctx.prefix + ctx.command.name + ' ', '')
+        # Remove an @ if it was passed
+        name = name.replace('@', '')
+
+        try:
+            channel_user = await ctx.channel.user()
+            channel_id = channel_user.id
+            tickets = database.calculate_raffle_tickets_from_name(name, channel_id)
+        except IndexError:
+            await ctx.send("I've looked everywhere, but couldn't find " + name)
+        else:
+            await ctx.send(name + ' currently has ' + str(tickets) + ' tickets in the raffle.')
+
+    @commands.command()
+    async def all_tickets(self, ctx: commands.Context):
+        channel_user = await ctx.channel.user()
+        channel_id = channel_user.id
+        (total_users, total_tickets) = database.calculate_all_tickets(channel_id)
+        await ctx.send('There are currently ' + str(total_tickets) + ' tickets in the raffle, spread over ' +
+                       str(total_users) + ' generous gifters')
+
+    @commands.command()
+    async def raffle(self, ctx: commands.Context):
+        if ctx.author.is_broadcaster or ctx.author.is_mod:
+            channel_user = await ctx.channel.user()
+            channel_id = channel_user.id
+            (total_users, total_tickets) = database.calculate_all_tickets(channel_id)
+            await ctx.send('Pulling one lucky winner out of ' + str(total_tickets) + ' tickets, spread over ' +
+                           str(total_users) + ' generous gifters')
+            await asyncio.sleep(3)
+            winner = database.do_raffle(channel_id)
+            await ctx.send(str(winner) + ' is the lucky one! They had ' +
+                           str(database.calculate_raffle_tickets_from_name(winner, channel_id)) +
+                           ' tickets in the raffle')
+
+        else:
+            await ctx.send('Hello ' + str(ctx.author.name) + ', only channel staff are allowed to use this command')
+
+    @commands.command()
+    async def manual_add(self, ctx: commands.Context):
+        """
+        Manually adds either subs/bits/redeems to a specific user.
+        Syntax: ?manual_add <count> <type> <user>
+        <count>: a number specifying how much of the type to add
+        <type>: what category to add, can be either 'subs', 'bits' or 'redeems'
+        <name>: the name of the chatter to update
+        """
+
+        module_logger.warning('Manually adding: ' + str(ctx.message.content))
+        # Parse the message
+        message = str(ctx.message.content)
+        message = message.removeprefix(ctx.prefix + ctx.command.name + ' ')
+
+        # Check that all the parts are there
+        try:
+            (count, add_type, name) = message.split(' ', 3)
+        except ValueError:
+            await ctx.send('Missing syntax, try ' + ctx.prefix + ctx.command.name + ' <count> <type> <user>')
+            return
+        # Check that the count is a number
+        try:
+            count = int(count)
+        except (NameError, ValueError):
+            await ctx.send('Invalid number entered: ' + str(count))
+            return
+        # Check that the add_type is one of the valid types
+        if add_type not in ('subs', 'bits', 'redeems'):
+            await ctx.send("Invalid type, try 'subs', 'bits' or 'redeems'")
+            return
+
+        # Remove an @ if it was passed
+        name = name.replace('@', '')
+        # Check that the chatter exists
+        chatter: List[twitchio.User] = await self.fetch_users([name])
+        if not chatter:
+            await ctx.send("I've looked everywhere, but couldn't find " + name)
+            return
+        chatter: twitchio.User = chatter[0]
+
+        # Check that the user is staff
+        if ctx.author.is_broadcaster or ctx.author.is_mod:
+            channel_user = await ctx.channel.user()
+            channel_id = channel_user.id
+            if add_type == 'subs':
+                module_logger.warning('Manually adding ' + str(count) + ' subs to ' + str(chatter.name) + ' (' +
+                                      str(chatter.id) + ')')
+                database.increment_subs(chatter.id, chatter.name, channel_id, count)
+            elif add_type == 'bits':
+                module_logger.warning('Manually adding ' + str(count) + ' bits to ' + str(chatter.name) + ' (' +
+                                      str(chatter.id) + ')')
+                database.increment_bits(chatter.id, chatter.name, channel_id, count)
+            else:
+                module_logger.warning('Manually adding ' + str(count) + ' redeems to ' + str(chatter.name) + ' (' +
+                                      str(chatter.id) + ')')
+                database.increment_redeems(chatter.id, chatter.name, channel_id, count)
+            await ctx.send('Manual add done')
+        else:
+            await ctx.send('Hello ' + str(ctx.author.name) + ', only channel staff are allowed to use this command')
 
     def add_ban_event(self, ban_event: BanEvent) -> None:
         """
@@ -332,3 +483,5 @@ class TwitchBot(commands.Bot):
                                                                  'channel')
 
 # TODO: monitor for untimeout events while waiting to ban someone
+# TODO: Rework the timed ban thing to check the database for user to be banned on a set interval
+# TODO: Check if whispers can be used for commands

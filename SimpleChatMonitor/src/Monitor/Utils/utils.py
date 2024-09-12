@@ -100,10 +100,11 @@ class GlobalTerminator(multiprocessing.Process):
 
 
 class JoinChannel:
-    def __init__(self, name: str, twitch_id: int, token: str = None):
+    def __init__(self, name: str, twitch_id: int, token: str = None, enable_raffle_module: bool = False):
         self.name = name
         self.twitch_id = twitch_id
         self.token = token
+        self.enable_raffle_module = enable_raffle_module
 
 
 class JoinChannels:
