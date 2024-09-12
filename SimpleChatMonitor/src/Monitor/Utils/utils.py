@@ -48,6 +48,9 @@ def setup_arg_parser() -> argparse.ArgumentParser():
 
     parser.add_argument('-t', '--token', type=str, required=True, help='Bot channel\'s own OAth token')
     parser.add_argument('-i', '--own_id', type=int, required=True, help='Twitch ID of the bot')
+    parser.add_argument('-ci', '--client_id', type=str, required=True, help='Client ID for the event sub of the bot')
+    parser.add_argument('-cs', '--client_secret', type=str, required=True,
+                        help='Client secret for the event sub of the bot')
 
     return parser
 

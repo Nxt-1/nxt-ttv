@@ -22,19 +22,14 @@ module_logger = logging.getLogger(__name__)
 
 class TwitchBot(commands.Bot):
     def __init__(self, own_token: str, own_id: int, prefix: Union[str, list, tuple, set, Callable, Coroutine],
-                 client_secret: str = None, heartbeat: Optional[float] = 30.0, **kwargs):
+                 client_secret: str = None, client_id: str = None, heartbeat: Optional[float] = 30.0, **kwargs):
         self.join_channels = JoinChannels()  # List of channels and their details that the bot is joined to
         self.read_auth_file(constants.AUTH_PATH)
-        # TODO Delete this
-        # super().__init__(token=own_token, prefix=prefix, client_secret=client_secret,
-        #                  initial_channels=self.join_channels.get_channel_name_list(), heartbeat=heartbeat,
-        #                  kwargs=kwargs)
-        super().__init__(token=own_token, prefix=prefix, client_secret="s8l9xz25b6lgz3j6stcm6vz82ne3ye",
-                         client_id="k3ez0xaqde5ycwkoof9aciqttyu7jp",
+        super().__init__(token=own_token, prefix=prefix, client_secret=client_secret, client_id=client_id,
                          initial_channels=self.join_channels.get_channel_name_list(), heartbeat=heartbeat,
                          kwargs=kwargs)
-        self.esbot = commands.Bot.from_client_credentials(client_secret="s8l9xz25b6lgz3j6stcm6vz82ne3ye",
-                                                          client_id="k3ez0xaqde5ycwkoof9aciqttyu7jp")
+        self.pubsub = pubsub.PubSubPool(self)
+        self.esbot = commands.Bot.from_client_credentials(client_secret=client_secret, client_id=client_id)
         self.esclient = eventsub.EventSubClient(self.esbot, webhook_secret='veryverysecretstring',
                                                 callback_route='https://nxt-3d.be/twitchhook')
         self.own_id = own_id  # We need this before we're logged into the API for the pubsub
