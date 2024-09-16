@@ -42,7 +42,9 @@
   },
   "bot_names": [
     "StreamElements",
-    "Moobot"
+    "Moobot",
+    "OWN3D",
+    "SoundAlerts"
   ],
   "options": {
     "silent_ignore_bots": true,

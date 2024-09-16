@@ -13,5 +13,5 @@ DATABASE_PATH = os.path.abspath('../../database.db')
 MINUTES_BEFORE_BAN = 2
 
 # TODO: Integrate this in the channel specific config
-SUBS_PER_TICKET = 5
-BITS_PER_TICKET = 1000
+SUBS_PER_TICKET = 1
+BITS_PER_TICKET = 500

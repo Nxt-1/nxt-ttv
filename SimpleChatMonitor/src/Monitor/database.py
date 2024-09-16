@@ -316,6 +316,20 @@ def do_raffle(channel_id: int) -> str:
 
     # Pull random entry
     winner = random.choice(raffle_list)
-    module_logger.info(str(winner) + ' won the raffle, he had ' +
-                       str(calculate_raffle_tickets_from_name(winner, channel_id)) + ' tickets in the raffle')
+    module_logger.info(str(winner) + ' won the raffle, they had ' +
+                       str(calculate_raffle_tickets_from_name(winner, channel_id)) + ' tickets in pot')
     return winner
+
+
+def get_total_subs(channel_id: int) -> int:
+    """
+    Checks the total number of subs in the raffle.
+    :param channel_id: The Twitch ID of the broadcaster channel
+    :return: The total number of subs in the raffle
+    """
+
+    channel_id = 668866292
+    counts_query = "SELECT SUM(subs) AS total_subs FROM RaffleUsers WHERE channel_id = ?;"
+    query_vars = (channel_id,)
+    # This returns a list, containing a tuple with the number of subs, bits & redeems
+    return execute_read_query(counts_query, query_vars)[0][0]

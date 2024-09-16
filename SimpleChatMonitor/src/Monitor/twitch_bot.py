@@ -7,6 +7,7 @@ from typing import Union, Callable, Coroutine, Optional, Dict, List
 
 import twitchio
 from twitchio.ext import commands, eventsub, pubsub
+from twitchio.ext.commands import Context
 
 from Monitor import database
 from Monitor.Utils import constants
@@ -327,6 +328,13 @@ class TwitchBot(commands.Bot):
         else:
             await ctx.send('Hello ' + str(ctx.author.name) + ', only channel staff are allowed to use this command')
 
+    @commands.command()
+    async def subcount(self, ctx: commands.Context):
+        channel_user = await ctx.channel.user()
+        channel_id = channel_user.id
+        subs = database.get_total_subs(channel_id)
+        module_logger.critical(str(subs))
+
     def add_ban_event(self, ban_event: BanEvent) -> None:
         """
         Stores a new BanEvent in the system.
@@ -485,6 +493,25 @@ class TwitchBot(commands.Bot):
                                 '    Message: ' + str(check_result.message.content) + '\n' +
                                 '    Follow time mult.: ' + str(check_result.multipliers.follow_time) + '\n' +
                                 '    First time chatter mult.: ' + str(check_result.multipliers.first_time_chatter))
+
+    async def event_command_error(self, context: Context, error: Exception) -> None:
+        """|coro|
+
+        Event called when an error occurs during command invocation.
+
+        Parameters
+        ------------
+        context: :class:`.Context`
+            The command context.
+        error: :class:`.Exception`
+            The exception raised while trying to invoke the command.
+        """
+
+        if 'No command' in str(error):
+            # Ignore the 'No command "test" was found messages
+            pass
+        else:
+            module_logger.error('Error handing command: '+str(error))
 
     async def event_message(self, message):
         # Ignore the bots own messages
