@@ -46,12 +46,13 @@ class CheckResult:
     """
 
     def __init__(self, checker_name: str, message: twitchio.Message, result_type: CheckResultType = None,
-                 ignore_reason: IgnoreReason = None, message_score: float = 0):
+                 ignore_reason: IgnoreReason = None, message_score: int = 0, follow_time: int = 0):
         self.checker_name = checker_name  # The name of the MessageChecker that produced this result
         self.message = message  # The twitchio message instance
         self.result_type = result_type  # Type of result
         self.ignore_reason = ignore_reason  # Reason why a match was ignored
         self.message_score = message_score  # Score of the message
+        self.follow_time = follow_time  # Follow time of the chatter
         self.multipliers = namedtuple('multipliers', ['follow_time',
                                                       'first_time_chatter'])  # Indicator of which multipliers got applied (1 = applied, 0 not applied, None = error while checking)
         self.multipliers.follow_time = 0
@@ -184,24 +185,37 @@ class MessageChecker:
         # Get the user object of the channel the message was sent in
         message_channel = await message.channel.user()
 
+        # Ignore messages by the broadcaster
+        if int(message.author.id) == int(message_channel.id):
+            result.message_score = -1
+            result.result_type = CheckResultType.NO_MATCH
+            return result
+
         # Check if the OAth code of the channel is stored
         token = self.joined_channels.channels.get(message_channel.name).token
 
         if token:
             # Check if the chatter user is following the channel user
-            follow_event_list = (await message_channel.fetch_channel_followers(token=token, user_id=message_user.id))
-            if follow_event_list:
-                # If the author is following but for a short time, multiply the score
-                if (datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at).days <= \
-                        self.follow_time_days_cutoff:
+            try:
+                follow_event_list = (
+                    await message_channel.fetch_channel_followers(token=token, user_id=message_user.id))
+            except twitchio.errors.Unauthorized as e:
+                module_logger.error('Unauthorized to get followers in channel ' + str(message_channel.name) + ': ' +
+                                    str(e))
+            else:
+                if follow_event_list:
+                    # If the author is following but for a short time, multiply the score
+                    follow_time = datetime.now(tz=timezone.utc) - follow_event_list[0].followed_at
+                    result.follow_time = follow_time.days
+                    if follow_time.days <= self.follow_time_days_cutoff:
+                        result.message_score *= self.follow_time_multiplier
+                        result.multipliers.follow_time = 1
+                    else:
+                        result.multipliers.follow_time = 0
+                else:
+                    # If the author is not following at all, multiply the score too
                     result.message_score *= self.follow_time_multiplier
                     result.multipliers.follow_time = 1
-                else:
-                    result.multipliers.follow_time = 0
-            else:
-                # If the author is not following at all, multiply the score too
-                result.message_score *= self.follow_time_multiplier
-                result.multipliers.follow_time = 1
         else:
             result.multipliers.follow_time = -1
 
@@ -285,6 +299,5 @@ class BanEvent:
             self.ban_method.close()
             # Cancel the timer as well
             self.ban_timer.cancel()
-
 
 # TODO: Add an optional TTS stop on message

@@ -87,15 +87,21 @@ def main():
         module_logger.info('Subs: ' + str(subs) + ' bits: ' + str(bits) + ' redeems: ' + str(redeems))
 
     @bot.twitch_bot.esbot.event()
-    async def event_eventsub_notification_ban(payload: eventsub.ChannelBanData) -> None:
-        module_logger.critical('Received ban event')
+    async def event_eventsub_notification_ban(payload: eventsub.NotificationEvent) -> None:
+        module_logger.critical('Received ban event for ' + str(payload.data.user.name) + ' in channel ' +
+                               str(payload.data.broadcaster.name))
+        # Update the database
+        database.update_status(int(payload.data.user.id), database.FilterEventStatus.BANNED)
 
     @bot.twitch_bot.esbot.event()
-    async def event_eventsub_notification_unban(payload: eventsub.ChannelUnbanData) -> None:
-        module_logger.critical('Received unban event HYPE')
+    async def event_eventsub_notification_unban(payload: eventsub.NotificationEvent) -> None:
+        module_logger.critical('Received unban event for ' + str(payload.data.user.name) + ' in channel ' +
+                               str(payload.data.broadcaster.name))
+        # Update the database
+        database.update_status(int(payload.data.user.id), database.FilterEventStatus.UNBANNED)
 
     @bot.twitch_bot.esbot.event()
-    async def event_eventsub_notification_channel_shield_mode_end(event: eventsub.ChannelShieldModeEndData) -> None:
+    async def event_eventsub_notification_channel_shield_mode_end(event: eventsub.NotificationEvent) -> None:
         module_logger.critical('Received unshield event')
 
     bot.run()

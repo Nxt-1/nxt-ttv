@@ -11,6 +11,13 @@ module_logger = logging.getLogger(__name__)
 _db_connection: sqlite3.Connection | None = None
 
 
+class FilterEventStatus(Enum):
+    NOOP = 1  # The event is registered but required further action
+    TIMED = 2  # The event timed the user out and is currently in the grace period, awaiting a ban
+    UNBANNED = 3  # During the grace period a mod unbanned the user and should not continue to be banned
+    BANNED = 4  # The event is finished with a user banned either by the bot or by an eager mod, during the grace period
+
+
 # https://stackoverflow.com/questions/6829675/the-proper-method-for-making-a-db-connection-available-across-many-python-module
 def get_connection() -> sqlite3.Connection:
     global _db_connection

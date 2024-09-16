@@ -57,7 +57,7 @@ class TwitchBot(commands.Bot):
                 ]
                 await self.pubsub.subscribe_topics(topics)
 
-        # Eventsub stuff
+        # EventSub stuff
         self.loop.create_task(self.esclient.listen(port=4000))
         # self.loop.create_task(self.eventsub_client.listen(port=4000))
 
@@ -65,18 +65,27 @@ class TwitchBot(commands.Bot):
         try:
             await self.esclient.subscribe_channel_unbans(broadcaster=38884531)
         except twitchio.HTTPException as e:
-            module_logger.error('HTTP exception for webhook1: ' + str(e))
+            if e.reason == 'Conflict':
+                module_logger.debug('Already subbed to this event')
+            else:
+                module_logger.error('HTTP exception for webhook1: ' + str(e))
 
         try:
             await self.esclient.subscribe_channel_bans(broadcaster=38884531)
         except twitchio.HTTPException as e:
-            module_logger.error('HTTP exception for webhook2: ' + str(e))
+            if e.reason == 'Conflict':
+                module_logger.debug('Already subbed to this event')
+            else:
+                module_logger.error('HTTP exception for webhook2: ' + str(e))
 
-        try:
-            # await esclient.subscribe_channel_bans(broadcaster=38884531)
-            await self.esclient.subscribe_channel_shield_mode_end(broadcaster=38884531, moderator=38884531)
-        except twitchio.HTTPException as e:
-            module_logger.error('HTTP exception for webhook3: ' + str(e))
+        # try:
+        #     # await esclient.subscribe_channel_bans(broadcaster=38884531)
+        #     await self.esclient.subscribe_channel_shield_mode_end(broadcaster=38884531, moderator=38884531)
+        # except twitchio.HTTPException as e:
+        #     if e.reason == 'Conflict':
+        #         module_logger.debug('Already subbed to this event')
+        #     else:
+        #         module_logger.error('HTTP exception for webhook3: ' + str(e))
 
         await self.start()
 
@@ -364,9 +373,11 @@ class TwitchBot(commands.Bot):
             if e.reason == 'The user specified in the user_id field is already banned.':
                 module_logger.debug('User already banned')
             else:
-                module_logger.error('Unexpected error: '+str(e))
+                module_logger.error('Unexpected error: ' + str(e))
         except KeyError:
             module_logger.debug('Ignoring duplicate delete for user ' + str(message.author.display_name))
+        # Update the database
+        database.update_status(int(message.author.id), database.FilterEventStatus.BANNED)
 
     async def unban_chatter(self, message: twitchio.Message = None, channel: twitchio.channel = None,
                             chatter_name: str = None) -> None:
@@ -411,6 +422,15 @@ class TwitchBot(commands.Bot):
     async def handle_check_result(self, check_result: CheckResult):
         # Handle matches
         if check_result.result_type == CheckResultType.MATCH:
+            database.insert_new_event(user_id=int(check_result.message.author.id),
+                                      username=check_result.message.author.display_name,
+                                      channel=check_result.message.channel.name,
+                                      message=check_result.message.content,
+                                      score=check_result.message_score,
+                                      follow_time=check_result.follow_time,
+                                      status=database.FilterEventStatus.TIMED,
+                                      is_near_miss=False,
+                                      ignore_reason='')
             module_logger.info('Flagged message from ' + check_result.message.author.display_name + ' in ' +
                                str(check_result.message.channel.name) + ' with:\n' +
                                '    Score: ' + str(check_result.message_score) + '\n' +
@@ -428,6 +448,15 @@ class TwitchBot(commands.Bot):
             if check_result.ignore_reason == IgnoreReason.FRIENDLY_BOT:
                 pass
             else:
+                database.insert_new_event(user_id=int(check_result.message.author.id),
+                                          username=check_result.message.author.display_name,
+                                          channel=check_result.message.channel.name,
+                                          message=check_result.message.content,
+                                          score=check_result.message_score,
+                                          follow_time=check_result.follow_time,
+                                          status=database.FilterEventStatus.NOOP,
+                                          is_near_miss=False,
+                                          ignore_reason=check_result.ignore_reason.name)
                 module_logger.info('Passing message from ' + check_result.message.author.display_name + ' in ' +
                                    str(check_result.message.channel.name) + ' with:\n' +
                                    '    Pass reason: ' + str(check_result.ignore_reason.name) + '\n' +
@@ -441,6 +470,15 @@ class TwitchBot(commands.Bot):
 
         # Log near misses
         elif check_result.result_type == CheckResultType.NO_MATCH and check_result.message_score >= 2:
+            database.insert_new_event(user_id=int(check_result.message.author.id),
+                                      username=check_result.message.author.display_name,
+                                      channel=check_result.message.channel.name,
+                                      message=check_result.message.content,
+                                      score=check_result.message_score,
+                                      follow_time=check_result.follow_time,
+                                      status=database.FilterEventStatus.NOOP,
+                                      is_near_miss=True,
+                                      ignore_reason='')
             module_logger.debug('Near miss from ' + check_result.message.author.display_name + ' in ' +
                                 str(check_result.message.channel.name) + ' with:\n' +
                                 '    Score: ' + str(check_result.message_score) + '\n' +
