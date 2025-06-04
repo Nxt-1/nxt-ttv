@@ -477,7 +477,7 @@ class TwitchBot(commands.Bot):
                                                         str(check_result.ignore_reason.name))
 
         # Log near misses
-        elif check_result.result_type == CheckResultType.NO_MATCH and check_result.message_score >= 2:
+        elif check_result.result_type == CheckResultType.NO_MATCH and check_result.message_score >= 1:
             database.insert_new_event(user_id=int(check_result.message.author.id),
                                       username=check_result.message.author.display_name,
                                       channel=check_result.message.channel.name,
@@ -511,7 +511,7 @@ class TwitchBot(commands.Bot):
             # Ignore the 'No command "test" was found messages
             pass
         else:
-            module_logger.error('Error handing command: '+str(error))
+            module_logger.error('Error handing command: ' + str(error))
 
     async def event_message(self, message):
         # Ignore the bots own messages

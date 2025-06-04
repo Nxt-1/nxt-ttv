@@ -126,3 +126,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# TODO: Add hourly? test message to own channel and reload the system on failure.
