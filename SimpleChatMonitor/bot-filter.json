@@ -34,6 +34,10 @@
       "B͟est"
     ]
   },
+  "illegal_blocks": {
+    "CombiningDiacritical": "[\u0300-\u036F]"
+  },
+  "illegal_block_score": 3,
   "minScore": 5,
   "multipliers": {
     "follow_time_days_cutoff": 1,

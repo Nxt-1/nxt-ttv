@@ -60,6 +60,32 @@ class CheckResult:
 
 
 class MessageChecker:
+    """
+    The MessageChecker is a simple rule based process that assigns scores on messages based on regex rules and keyword
+    matches. Each match corresponds with a certain score, higher scores indicated a more suspicious message. After a
+    base score is assigned, multipliers are applied based on message meta-info.
+
+    Filtering and matching:
+    1. Check for illegal character-(blocks) Each matched set will result in the illegal_set_score being added.
+    2. All spaces and all non-alphanumeric characters are removed.
+    3. All keywords are matched, case-insensitive.
+    4. If enabled, any cyrillic characters are matched
+
+    Multipliers:
+    1. Ignore broadcaster.
+    If the channel token is available:
+    2. Short time followers.
+    3. Not following at all.
+    All messages:
+    4. First time chatters
+
+    Certain optional ignores:
+    1. Known friendly bots.
+    2. Channel staff.
+    3. VIP's.
+    4. Subscribers.
+    5. Followers.
+    """
     CYRILLIC_RE = re.compile(r'[А-Яа-яЁё]+', re.IGNORECASE)  # Regex to match any cyrillic character
 
     def __init__(self, joined_channels: JoinChannels, cyrillics_score: float = None):
@@ -72,6 +98,8 @@ class MessageChecker:
         self.name = 'default'  # Descriptor for the specific filter
         self.joined_channels = joined_channels
         # Filter
+        self.illegal_block_re: dict[str, re.Pattern] = {}
+        self.illegal_block_score = 0
         self.flagged_re: dict[str, re.Pattern] = {}
         self.cyrillics_score = cyrillics_score
         self.min_score = 999  # Minimum score required for a message to be flagged
@@ -109,6 +137,15 @@ class MessageChecker:
             module_logger.error('Could not find config file at ' + str(os.path.abspath(file_path)) + ': ' + str(e))
             return
         else:
+            # Read the illegal character regexes
+            illegal_blocks = config_json['illegal_blocks']
+            self.illegal_block_score = config_json['illegal_block_score']
+            module_logger.info('Illegal blocks loaded: ' + str(len(illegal_blocks)) + ' with score ' +
+                               str(self.illegal_block_score))
+            for char_block in illegal_blocks:
+                module_logger.info('Block name: ' + str(char_block) + ' regex: ' + str(illegal_blocks[char_block]))
+                self.illegal_block_re[char_block] = re.compile(str(illegal_blocks[char_block]), re.IGNORECASE)
+
             # Read the ban lists
             for tier in config_json['flaggedTiers']:
                 module_logger.info('Tier name: ' + str(tier) + ' containing: ' + str(config_json['flaggedTiers'][tier]))
@@ -164,10 +201,21 @@ class MessageChecker:
             return result
 
         # <editor-fold desc="Message filtering">
-        # Filter out spaces and non-alpha numeric characters
+        # Check for specific illegal character(blocks)
+        for (block, block_re) in self.illegal_block_re.items():
+            match = set(re.findall(block_re, message.content))
+            if match:
+                bad_chars = ''
+                for character in match:
+                    bad_chars += 'U+' + format(ord(character), '04x') + ' '
+                module_logger.debug('Block ' + str(block) + ' violation: ' + str(bad_chars))
+                result.message_score += self.illegal_block_score
+            else:
+                module_logger.warning('no block violation')
+
+        # Filter out spaces and non-alpha numeric characters for further processing
         filtered_msg = IGNORED_SET.sub('', message.content)
 
-        result.message_score = 0
         for (tier, tier_re) in self.flagged_re.items():
             match = set(re.findall(tier_re, filtered_msg))
             tier_score = int(tier, base=10) * len(match)
