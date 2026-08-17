@@ -37,6 +37,7 @@ class TwitchBot(commands.Bot):
         self.own_id = own_id  # We need this before we're logged into the API for the pubsub
         self.own_token = own_token
         self.mp_manager = multiprocessing.Manager()
+        # TODO: Make cyrillics score a config parameter
         self.spam_bot_filter = MessageChecker(joined_channels=self.join_channels, cyrillics_score=10)
         self.ban_events: Dict[
             str, BanEvent] = {}  # Dict containing all the currently active BanEvents (the author's name is used as key)
@@ -426,6 +427,9 @@ class TwitchBot(commands.Bot):
         if message.channel.name == 'belishhhh':
             await asyncio.sleep(0.5)
             await message.channel.send("!tts stop")
+            module_logger.error('Message content: '+str(message.content))
+            if message.content == "!bsr 25f":
+                await message.channel.send('!bsr 386d7')
 
     async def handle_check_result(self, check_result: CheckResult):
         # Handle matches

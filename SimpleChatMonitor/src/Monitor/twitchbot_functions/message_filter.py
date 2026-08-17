@@ -210,8 +210,6 @@ class MessageChecker:
                     bad_chars += 'U+' + format(ord(character), '04x') + ' '
                 module_logger.debug('Block ' + str(block) + ' violation: ' + str(bad_chars))
                 result.message_score += self.illegal_block_score
-            else:
-                module_logger.warning('no block violation')
 
         # Filter out spaces and non-alpha numeric characters for further processing
         filtered_msg = IGNORED_SET.sub('', message.content)
